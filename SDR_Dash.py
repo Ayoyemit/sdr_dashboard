@@ -15,6 +15,8 @@ from global_func import reset_flags, reset_E, reset_HSS, reset_S, get_P_l45
 # Performance optimization imports
 from optimization_config import streamlit_cache, opt_config
 from optimized_model_run import run_model_dash as run_model_dash_optimized
+
+# App version: 1.1 - Optimized for online deployment
 st.set_page_config(layout="wide")
 selected_plot = None
 

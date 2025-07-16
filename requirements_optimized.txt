@@ -1,0 +1,56 @@
+# Optimized requirements for SDR Dashboard
+# Core dependencies with performance optimizations
+
+# Streamlit with latest version for better performance
+streamlit>=1.42.2
+
+# NumPy with optimized BLAS/LAPACK
+numpy>=1.23.5
+
+# SciPy for scientific computing
+scipy>=1.11.0
+
+# Pandas for data manipulation
+pandas>=1.5.3
+
+# Altair for interactive charts
+altair>=5.5.0
+
+# Seaborn for statistical visualizations
+seaborn>=0.13.2
+
+# Numba for JIT compilation (optional but recommended)
+numba>=0.58.0
+
+# Joblib for parallel processing
+joblib>=1.3.0
+
+# Memory profiling and optimization
+psutil>=5.9.0
+memory-profiler>=0.61.0
+
+# Caching and optimization
+diskcache>=5.6.0
+cachetools>=5.3.0
+
+# Parallel processing
+multiprocessing-logging>=0.3.0
+
+# Performance monitoring
+py-spy>=0.3.0
+
+# Mathematical optimization
+mpmath>=1.3.0
+
+# Setuptools for package management
+setuptools>=65.0.0
+
+# Pip for dependency management
+pip>=25.0.1
+
+# Optional: GPU acceleration (if available)
+# cupy-cuda11x>=12.0.0  # Uncomment if CUDA GPU is available
+
+# Optional: Additional optimization libraries
+# numexpr>=2.8.0  # For faster numerical expressions
+# bottleneck>=1.3.0  # For faster pandas operations 

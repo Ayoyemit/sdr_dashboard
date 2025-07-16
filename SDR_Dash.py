@@ -566,8 +566,8 @@ with (st.expander("⚙️ **Model Settings** (Click to expand/collapse)", expand
 
         with col4:
             if MODEL["multiple_run"]:
-                MODEL["n_runs"] = st.number_input("Number of runs", min_value=1, max_value=300, step=1, value=3, placeholder="Type a number",
-                                                  help="Recommended: 2-3 runs for online deployment, 5+ for local testing")
+                MODEL["n_runs"] = st.number_input("Number of runs", min_value=1, max_value=50, step=1, value=2, placeholder="Type a number",
+                                                  help="Recommended: 2-3 runs for online deployment, 5+ for local testing. Higher values may cause timeouts.")
 
                 # st.slider("Number of runs", min_value=1, max_value=300, step=1, value=10,
                 #                             help="Number of simulation runs to average over")
@@ -605,6 +605,10 @@ with (st.expander("⚙️ **Model Settings** (Click to expand/collapse)", expand
         if submitted:
             st.session_state.model_finished = False
             st.session_state.selected_outcomes = []
+
+            # Add timeout warning for high run counts
+            if MODEL["multiple_run"] and MODEL["n_runs"] > 5:
+                st.warning("⚠️ Running many scenarios may take a long time and could timeout. Consider using fewer runs for online deployment.")
 
             # Display progress status
             status = st.empty()  # Placeholder for dynamic status messages
@@ -806,6 +810,10 @@ with (st.expander("⚙️ **Model Settings** (Click to expand/collapse)", expand
             # Memory cleanup
             if opt_config.memory_optimized:
                 gc.collect()
+            
+            # Add warning for high run counts
+            if MODEL["multiple_run"] and MODEL["n_runs"] > 5:
+                st.warning("⚠️ High run counts may cause timeouts on free hosting. Consider using 2-3 runs for online deployment.")
 
             # Success message with total runtime
             st.success(f"🎉 Model execution completed! Total runtime: {total_minutes:.1f} minutes.")

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from project_parameters import get_parameters, get_slider_params, calculate_derived_parameters
+from parameters import get_parameters, get_slider_params, calculate_derived_parameters
 from model_run import run_model_dash as run_model_original
 from optimized_model_run import run_model_dash as run_model_optimized
 from global_func import reset_flags, reset_E, reset_HSS, reset_S

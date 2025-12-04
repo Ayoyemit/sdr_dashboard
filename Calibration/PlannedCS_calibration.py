@@ -2,7 +2,7 @@ import random
 import numpy as np
 import streamlit as st
 import math
-from project_parameters import get_parameters
+from parameters import get_parameters
 from global_func import odds_prob
 
 # Initialize parameters

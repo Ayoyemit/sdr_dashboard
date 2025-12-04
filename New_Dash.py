@@ -16,8 +16,103 @@ from global_func import reset_flags, reset_E, reset_HSS, reset_S, get_P_l45
 from optimization_config import streamlit_cache, opt_config
 from optimized_model_run import run_model_dash as run_model_dash_optimized
 
+# Sankey visualization imports
+from sankey_visualizer import generate_sankey_comparison, PATHWAY_FUNCTIONS
+
 # App version: 1.1 - Optimized for online deployment
 st.set_page_config(layout="wide")
+
+# Reduce padding/height for alert messages and tooltips to make UI less busy
+st.markdown(
+    """
+    <style>
+        /* Very aggressive padding reduction for all Streamlit alerts */
+        div[data-testid="stSuccess"],
+        div[data-testid="stInfo"],
+        div[data-testid="stWarning"],
+        div[data-testid="stError"] {
+            padding: 0.25rem 0.5rem !important;
+            margin: 0.15rem 0 !important;
+            font-size: 0.85rem !important;
+            line-height: 1.2 !important;
+        }
+        
+        /* Target the alert container directly */
+        div[data-testid="stSuccess"] > div,
+        div[data-testid="stInfo"] > div,
+        div[data-testid="stWarning"] > div,
+        div[data-testid="stError"] > div {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Target all child elements */
+        div[data-testid="stSuccess"] *,
+        div[data-testid="stInfo"] *,
+        div[data-testid="stWarning"] *,
+        div[data-testid="stError"] * {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        
+        /* Reduce tooltip padding */
+        [data-testid="stTooltip"],
+        [class*="tooltip"],
+        [class*="Tooltip"] {
+            padding: 0.2rem 0.35rem !important;
+            font-size: 0.75rem !important;
+            margin: 0.05rem !important;
+        }
+        
+        /* Additional universal selectors for Streamlit alerts */
+        .element-container:has([data-testid="stSuccess"]),
+        .element-container:has([data-testid="stInfo"]),
+        .element-container:has([data-testid="stWarning"]),
+        .element-container:has([data-testid="stError"]) {
+            margin: 0.15rem 0 !important;
+        }
+    </style>
+    <script>
+        // Apply styles via JavaScript to ensure they take effect
+        function reduceAlertPadding() {
+            const alerts = document.querySelectorAll('[data-testid="stSuccess"], [data-testid="stInfo"], [data-testid="stWarning"], [data-testid="stError"]');
+            alerts.forEach(function(alert) {
+                alert.style.padding = '0.25rem 0.5rem';
+                alert.style.margin = '0.15rem 0';
+                alert.style.fontSize = '0.85rem';
+                alert.style.lineHeight = '1.2';
+                
+                // Reduce padding in all child elements
+                const children = alert.querySelectorAll('*');
+                children.forEach(function(child) {
+                    child.style.marginTop = '0';
+                    child.style.marginBottom = '0';
+                    child.style.paddingTop = '0';
+                    child.style.paddingBottom = '0';
+                });
+            });
+        }
+        
+        // Run immediately and on DOM changes
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', reduceAlertPadding);
+        } else {
+            reduceAlertPadding();
+        }
+        
+        // Also run after a short delay to catch dynamically added elements
+        setTimeout(reduceAlertPadding, 100);
+        
+        // Use MutationObserver to catch new alerts
+        const observer = new MutationObserver(reduceAlertPadding);
+        observer.observe(document.body, { childList: true, subtree: true });
+    </script>
+    """,
+    unsafe_allow_html=True
+)
+
 selected_plot = None
 
 MODEL = {
@@ -486,38 +581,6 @@ if 'b_df_multiple' not in st.session_state:
     st.session_state.b_df_multiple = None
 
 
-# --- Breadcrumb Navigation ---
-def render_breadcrumb():
-    """Render breadcrumb navigation at the top of the dashboard"""
-    breadcrumb_items = ["🏠 Home"]
-    if hasattr(st.session_state, 'intervention_selection') and st.session_state.intervention_selection:
-        breadcrumb_items.append(f"📋 {st.session_state.intervention_selection}")
-    if hasattr(st.session_state, 'hss_mode') and st.session_state.hss_mode:
-        breadcrumb_items.append(f"⚙️ {st.session_state.hss_mode}")
-    if hasattr(st.session_state, 'model_finished') and st.session_state.model_finished:
-        breadcrumb_items.append("📊 Results")
-    breadcrumb = " > ".join(breadcrumb_items)
-    st.markdown(f"""
-    <div style='
-        padding: 12px 16px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 8px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border-left: 4px solid #4CAF50;
-    '>
-        <span style='
-            color: white;
-            font-weight: 600;
-            font-size: 14px;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-        '>{breadcrumb}</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-# --- Main Dashboard Layout ---
-render_breadcrumb()
-
 with st.expander("⚙️ **Scenario Settings** (Click to expand/collapse)", expanded=True):
     # Leading Question
     if st.session_state.intervention_selection is None:
@@ -726,7 +789,6 @@ with (st.expander("⚙️ **Model Settings** (Click to expand/collapse)", expand
                         rng_param = np.random.default_rng(base_seed)
                         b_param = get_parameters(rng = rng_param)
                         b_param = calculate_derived_parameters(b_param)
-                        #st.text(b_param)
                         b_flags, b_HSS, b_S, b_E = reset_flags(), reset_HSS(slider_params), reset_S(slider_params), reset_E()
                         b_param.update({"E": b_E, "S": b_S, "HSS": b_HSS})
 
@@ -748,22 +810,6 @@ with (st.expander("⚙️ **Model Settings** (Click to expand/collapse)", expand
                         progress_bar.progress((i + 1) / total_runs)
                         status.text(f"⏳ Running Baseline Model... {i + 1}/{total_runs} runs completed. "
                                     f"Estimated time left: {remaining_time / 60:.1f} min.")
-                        # st.text(f"CPU usage: {psutil.cpu_percent()}%")
-                        # usage_per_core = psutil.cpu_percent(percpu=True)
-                        # for i, usage in enumerate(usage_per_core):
-                        #     st.text(f"Core {i}: {usage}%")
-                        #
-                        # def print_resource_usage(interval=1, repeat=10):
-                        #     process = psutil.Process(os.getpid())
-                        #
-                        #     for i in range(repeat):
-                        #         cpu = psutil.cpu_percent(interval=interval)
-                        #         mem_info = process.memory_info()
-                        #         mem_mb = mem_info.rss / (1024 ** 2)  # Convert bytes to MB
-                        #
-                        #         st.text(f"[{i + 1}] CPU Usage: {cpu:.1f}% | Memory Usage: {mem_mb:.2f} MB")
-                        #
-                        # print_resource_usage()
 
                     # Store final baseline results in session state
                     st.session_state.b_df_multiple = pd.concat(temp_b_df, ignore_index=True)
@@ -787,7 +833,6 @@ with (st.expander("⚙️ **Model Settings** (Click to expand/collapse)", expand
                     rng_param = np.random.default_rng(base_seed)
                     i_param = get_parameters(rng = rng_param)
                     i_param = calculate_derived_parameters(i_param)
-                    #st.text(i_param)
                     i_param.update({"E": i_E, "S": i_S, "HSS": i_HSS})
 
                     # Run intervention model
@@ -808,10 +853,6 @@ with (st.expander("⚙️ **Model Settings** (Click to expand/collapse)", expand
                     progress_bar.progress((i + 1) / total_runs)
                     status.text(f"⏳ Running Intervention Model... {i + 1}/{total_runs} runs completed. "
                                 f"Estimated time left: {remaining_time / 60:.1f} min.")
-                    # st.text(f"CPU usage: {psutil.cpu_percent()}%")
-                    # usage_per_core = psutil.cpu_percent(percpu=True)
-                    # for i, usage in enumerate(usage_per_core):
-                    #     st.text(f"Core {i}: {usage}%")
 
                 # Store intervention results
                 i_df = pd.concat(temp_i_df, ignore_index=True)
@@ -837,6 +878,7 @@ with (st.expander("⚙️ **Model Settings** (Click to expand/collapse)", expand
             st.session_state.i_param = i_param
             st.session_state.n_runs = MODEL["n_runs"]
             st.session_state.model_finished = True
+            st.session_state.sankey_cache = {"baseline": {}, "scenario": {}, "summary": {}}
 
             # Display execution time
             st.success(f"Model execution completed in {total_time:.2f} seconds")
@@ -850,33 +892,340 @@ with (st.expander("⚙️ **Model Settings** (Click to expand/collapse)", expand
                 st.warning("⚠️ High run counts may cause timeouts on free hosting. Consider using 2-3 runs for online deployment.")
 
             # Success message with total runtime
-            st.success(f"🎉 Model execution completed! Total runtime: {total_minutes:.1f} minutes.")
-    if  st.session_state.model_finished == True:
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            download_option = st.checkbox("Download the individual outcomes")
-            if download_option:
-                if "b_ind_outcomes" in st.session_state and not st.session_state.b_ind_outcomes.empty:
-                    csv_baseline = st.session_state.b_ind_outcomes.to_csv(index=False)
-                    st.download_button(label="📥 Download Baseline.csv", data=csv_baseline, file_name="baseline.csv",
-                                       mime="text/csv")
-                else:
-                    st.warning("⚠️ Baseline data is not available. Please run the model first.")
+            # st.success(f"🎉 Model execution completed! Total runtime: {total_minutes:.1f} minutes.")
 
-                scenario_name = st.text_input("**Enter Intervention Scenario Name:**", placeholder="e.g., Scenario_1")
-                st.session_state.scenario_name = scenario_name
-                # Ensure a scenario name is entered
-                if scenario_name:
+# Data Export & Visualization Options in its own accordion (outside Model Settings expander)
+if st.session_state.model_finished == True:
+    with st.expander("📊 **Data Export & Visualization Options** (Click to expand/collapse)", expanded=False):
+            # Unified Options Section
+            st.subheader("Do you want to export outcome data or generate pathway visualizations?")
+            
+            # Create main options
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                st.markdown("#### Data Export")
+                download_option = st.checkbox("📥 Download Individual Outcomes", help="Export baseline and scenario data as CSV files")
+                
+            with col2:
+                st.markdown("#### Pathway Visualization")
+                visualization_option = st.checkbox("📊 Generate Sankey Diagrams", help="Create interactive pathway flow diagrams")
+            
+            # Show tip when either option is selected
+            if download_option or visualization_option:
+                st.info("💡 **Tip:** Baseline name is given to baseline data by default. Only provide name for the scenario run for both download and visualization.")
+            
+            # Download Section
+            if download_option:
+                st.markdown("#### 📥 Download Data Files")
+                
+                col_dl1, col_dl2 = st.columns([1, 1])
+                
+                with col_dl1:
+                    if "b_ind_outcomes" in st.session_state and not st.session_state.b_ind_outcomes.empty:
+                        csv_baseline = st.session_state.b_ind_outcomes.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Download Baseline.csv", 
+                            data=csv_baseline, 
+                            file_name="baseline.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
+                    else:
+                        st.warning("⚠️ Baseline data is not available. Please run the model first.")
+
+                with col_dl2:
                     if "i_ind_outcomes" in st.session_state and not st.session_state.i_ind_outcomes.empty:
-                        file_name = f"{scenario_name}.csv"
-                        st.session_state.i_ind_outcomes["Scenario"] = scenario_name
-                        csv_intervention = st.session_state.i_ind_outcomes.to_csv(index=False)
-                        st.download_button(label=f"📥 Download {file_name}", data=csv_intervention, file_name=file_name,
-                                           mime="text/csv")
+                        # Use shared scenario name from session state, with fallback to empty
+                        default_scenario_dl = st.session_state.get("scenario_name", "")
+                        scenario_name_dl = st.text_input("**Enter Scenario Name:**", value=default_scenario_dl, placeholder="e.g., Scenario_1", key="scenario_name_dl")
+                        
+                        # Update session state when user types
+                        if scenario_name_dl != default_scenario_dl:
+                            st.session_state.scenario_name = scenario_name_dl
+                        
+                        if scenario_name_dl:
+                            file_name = f"{scenario_name_dl}.csv"
+                            st.session_state.i_ind_outcomes["Scenario"] = scenario_name_dl
+                            csv_intervention = st.session_state.i_ind_outcomes.to_csv(index=False)
+                            st.download_button(
+                                label=f"📥 Download {file_name}", 
+                                data=csv_intervention, 
+                                file_name=file_name,
+                                mime="text/csv",
+                                use_container_width=True
+                            )
+                        else:
+                            st.warning("⚠️ Please enter a scenario name to download intervention data.")
                     else:
                         st.warning("⚠️ Intervention data is not available. Please run the model first.")
+            
+            # Visualization Section
+            if visualization_option:
+                st.markdown("#### Pathway Visualization Settings")
+                
+                if ("b_ind_outcomes" in st.session_state and not st.session_state.b_ind_outcomes.empty and 
+                    "i_ind_outcomes" in st.session_state and not st.session_state.i_ind_outcomes.empty):
+                    
+                    st.info("💡 **Please enter scenario name to generate visualizations for both baseline and scenario**")
+                    
+                    # Configuration section
+                    col_viz1, col_viz2 = st.columns([1, 1])
+                    
+                    with col_viz1:
+                        st.markdown("**Scenario Configuration:**")
+                        # Use shared scenario name from session state, with fallback to empty
+                        default_scenario_viz = st.session_state.get("scenario_name", "")
+                        scenario_name_viz = st.text_input("**Enter Scenario Name:**", value=default_scenario_viz, placeholder="e.g., Scenario_1", key="scenario_name_viz")
+                        
+                        # Update session state when user types
+                        if scenario_name_viz != default_scenario_viz:
+                            st.session_state.scenario_name = scenario_name_viz
+                    
+                    with col_viz2:
+                        st.markdown("**Pathway Selection:**")
+                        pathway_options = list(PATHWAY_FUNCTIONS.keys())
+                        selected_pathway = st.selectbox(
+                            "Choose Pathway:",
+                            options=pathway_options,
+                            help="Select which maternal health pathway to visualize"
+                        )
+                    
+                    # Generate button
+                    if scenario_name_viz:
+                        if st.button("🎯 Generate Sankey Diagrams", type="primary", use_container_width=True):
+                            try:
+                                with st.spinner("Generating high-quality Sankey diagrams..."):
+                                    start_time = time.perf_counter()
+                                    cache = st.session_state.setdefault(
+                                        "sankey_cache",
+                                        {"baseline": {}, "scenario": {}, "summary": {}}
+                                    )
+
+                                    baseline_key = f"baseline::{selected_pathway}"
+                                    scenario_key = f"{scenario_name_viz}::{selected_pathway}"
+                                    cache_hit = False
+
+                                    if (
+                                        baseline_key in cache["baseline"]
+                                        and scenario_key in cache["scenario"]
+                                        and scenario_key in cache["summary"]
+                                    ):
+                                        fig_baseline = cache["baseline"][baseline_key]
+                                        fig_scenario = cache["scenario"][scenario_key]
+                                        summary = cache["summary"][scenario_key]
+                                        cache_hit = True
+                                    else:
+                                        fig_baseline, fig_scenario, summary = generate_sankey_comparison(
+                                            st.session_state.b_ind_outcomes,
+                                            st.session_state.i_ind_outcomes,
+                                            selected_pathway
+                                        )
+                                        cache["baseline"][baseline_key] = fig_baseline
+                                        cache["scenario"][scenario_key] = fig_scenario
+                                        cache["summary"][scenario_key] = summary
+                                    elapsed = time.perf_counter() - start_time
+                                    
+                                    # Store in session state for display
+                                    st.session_state.sankey_baseline = fig_baseline
+                                    st.session_state.sankey_scenario = fig_scenario
+                                    st.session_state.selected_pathway = selected_pathway
+                                    st.session_state.sankey_summary = summary
+                                    st.session_state.sankey_generation_info = {
+                                        "elapsed": elapsed,
+                                        "cache_hit": cache_hit,
+                                    }
+                                    
+                                # Show compact success message
+                                st.success("✅ High-quality Sankey diagrams generated successfully!")
+                                
+                            except Exception as e:
+                                st.error(f"❌ Error generating Sankey diagrams: {str(e)}")
+                                st.error("Please ensure your data contains all required columns for the selected pathway.")
+                    else:
+                        st.warning("⚠️ Please enter a scenario name before generating visualizations.")
                 else:
-                    st.warning("⚠️ Please enter a scenario name before downloading the intervention data.")
+                    st.warning("⚠️ Both baseline and intervention data are required for pathway visualization. Please run the model first.")
+
+# Display Sankey diagrams if they exist
+if ("sankey_baseline" in st.session_state and "sankey_scenario" in st.session_state and 
+    st.session_state.sankey_baseline is not None and st.session_state.sankey_scenario is not None):
+    
+    st.markdown("---")
+    scenario_display_name = st.session_state.scenario_name if "scenario_name" in st.session_state else "Scenario"
+    st.markdown(f"### 📊 {st.session_state.selected_pathway} - Baseline vs {scenario_display_name} Comparison")
+    
+    # Display options
+    col_view1, col_view2, col_view3 = st.columns([1, 1, 1])
+    
+    with col_view1:
+        view_mode = st.radio("View Mode:", ["Side by Side", "Individual"], horizontal=True)
+    
+    with col_view2:
+        if st.button("🔄 Regenerate Diagrams", help="Regenerate with current settings"):
+            # Clear existing diagrams to trigger regeneration
+            st.session_state.sankey_baseline = None
+            st.session_state.sankey_scenario = None
+            st.session_state.sankey_summary = None
+            st.session_state.sankey_generation_info = None
+            cache = st.session_state.get("sankey_cache")
+            if cache:
+                pathway = st.session_state.get("selected_pathway")
+                scenario_name = st.session_state.get("scenario_name", "")
+                if pathway:
+                    cache["baseline"].pop(f"baseline::{pathway}", None)
+                    cache["scenario"].pop(f"{scenario_name}::{pathway}", None)
+                    cache["summary"].pop(f"{scenario_name}::{pathway}", None)
+            st.rerun()
+    
+    with col_view3:
+        if st.button("🗑️ Clear Diagrams", help="Remove current diagrams"):
+            st.session_state.sankey_baseline = None
+            st.session_state.sankey_scenario = None
+            st.session_state.sankey_summary = None
+            st.session_state.sankey_generation_info = None
+            st.session_state.sankey_cache = {"baseline": {}, "scenario": {}, "summary": {}}
+            st.rerun()
+
+    summary = st.session_state.get("sankey_summary")
+    if summary:
+        st.markdown("#### 🔎 Key Pathway Insights")
+        st.markdown(f"**{summary.get('headline', '')}**")
+        for bullet in summary.get("bullets", []):
+            st.markdown(f"- {bullet}")
+        gen_info = st.session_state.get("sankey_generation_info")
+        if gen_info:
+            speed_note = (
+                f"Generated in {gen_info['elapsed']:.2f}s "
+                f"({'cache' if gen_info['cache_hit'] else 'fresh computation'})"
+            )
+            st.caption(speed_note)
+    
+    if view_mode == "Side by Side":
+        # Create two columns for side-by-side display
+        col_baseline, col_scenario = st.columns(2)
+        
+        with col_baseline:
+            st.markdown("#### 🔵 Baseline")
+            st.plotly_chart(st.session_state.sankey_baseline, use_container_width=True, config={
+                'displayModeBar': True,
+                'displaylogo': False,
+                'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
+                'toImageButtonOptions': {
+                    'format': 'png',
+                    'filename': f'baseline_{st.session_state.selected_pathway.replace(" ", "_").lower()}_sankey',
+                    'height': 700,
+                    'width': 1400,
+                    'scale': 2
+                }
+            })
+        
+        with col_scenario:
+            st.markdown(f"#### 🟢 {scenario_display_name}")
+            st.plotly_chart(st.session_state.sankey_scenario, use_container_width=True, config={
+                'displayModeBar': True,
+                'displaylogo': False,
+                'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
+                'toImageButtonOptions': {
+                    'format': 'png',
+                    'filename': f'scenario_{st.session_state.selected_pathway.replace(" ", "_").lower()}_sankey',
+                    'height': 700,
+                    'width': 1400,
+                    'scale': 2
+                }
+            })
+    
+    else:  # Individual view
+        # Tabs for individual viewing
+        tab1, tab2 = st.tabs(["🔵 Baseline", f"🟢 {scenario_display_name}"])
+        
+        with tab1:
+            st.plotly_chart(st.session_state.sankey_baseline, use_container_width=True, config={
+                'displayModeBar': True,
+                'displaylogo': False,
+                'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
+                'toImageButtonOptions': {
+                    'format': 'png',
+                    'filename': f'baseline_{st.session_state.selected_pathway.replace(" ", "_").lower()}_sankey',
+                    'height': 700,
+                    'width': 1400,
+                    'scale': 2
+                }
+            })
+        
+        with tab2:
+            st.plotly_chart(st.session_state.sankey_scenario, use_container_width=True, config={
+                'displayModeBar': True,
+                'displaylogo': False,
+                'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
+                'toImageButtonOptions': {
+                    'format': 'png',
+                    'filename': f'scenario_{st.session_state.selected_pathway.replace(" ", "_").lower()}_sankey',
+                    'height': 700,
+                    'width': 1400,
+                    'scale': 2
+                }
+            })
+    
+    # Add download options for the diagrams
+    st.markdown("#### 💾 Download Sankey Diagrams")
+    col_download1, col_download2, col_download3 = st.columns(3)
+
+    # Prepare images (high-resolution)
+    try:
+        baseline_png = st.session_state.sankey_baseline.to_image(format="png", width=1400, height=700, scale=2)
+        scenario_png = st.session_state.sankey_scenario.to_image(format="png", width=1400, height=700, scale=2)
+
+        # Compose a combined PNG (side-by-side) using Pillow if available
+        combined_png = None
+        try:
+            from PIL import Image
+            from io import BytesIO
+            base_img = Image.open(BytesIO(baseline_png)).convert("RGBA")
+            scen_img = Image.open(BytesIO(scenario_png)).convert("RGBA")
+            total_width = base_img.width + scen_img.width
+            max_height = max(base_img.height, scen_img.height)
+            combined_img = Image.new("RGBA", (total_width, max_height), (255, 255, 255, 0))
+            combined_img.paste(base_img, (0, 0))
+            combined_img.paste(scen_img, (base_img.width, 0))
+            buf = BytesIO()
+            combined_img.save(buf, format="PNG")
+            combined_png = buf.getvalue()
+        except Exception:
+            combined_png = None
+
+        with col_download1:
+            st.download_button(
+                label="📥 Baseline (PNG)",
+                data=baseline_png,
+                file_name=f"baseline_{st.session_state.selected_pathway.replace(' ', '_').lower()}_sankey.png",
+                mime="image/png",
+                use_container_width=True
+            )
+
+        with col_download2:
+            st.download_button(
+                label="📥 Scenario (PNG)",
+                data=scenario_png,
+                file_name=f"scenario_{st.session_state.selected_pathway.replace(' ', '_').lower()}_sankey.png",
+                mime="image/png",
+                use_container_width=True
+            )
+
+        with col_download3:
+            if combined_png is not None:
+                st.download_button(
+                    label="📥 Combined (PNG)",
+                    data=combined_png,
+                    file_name=f"combined_{st.session_state.selected_pathway.replace(' ', '_').lower()}_sankey.png",
+                    mime="image/png",
+                    use_container_width=True
+                )
+            else:
+                st.caption("Install Pillow to enable combined PNG export: pip install pillow")
+    except Exception as e:
+        st.warning("⚠️ Image export requires the 'kaleido' package. Please install it to enable PNG downloads.")
+        st.code("pip install -U kaleido", language="bash")
 
 
 if "b_df" in st.session_state and "i_df" in st.session_state and st.session_state.model_finished:

@@ -60,4 +60,8 @@ Thumbs.db
 
 # Model outputs (if any)
 outputs/
-results/ 
+results/
+
+# Documentation files (Markdown)
+*.md
+!README.md 

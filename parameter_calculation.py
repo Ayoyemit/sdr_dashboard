@@ -1,5 +1,5 @@
 from global_func import GA_assign_kenya, GA_by_ANC
-from project_parameters import get_parameters
+from parameters import get_parameters
 import numpy as np
 import pandas as pd
 import random

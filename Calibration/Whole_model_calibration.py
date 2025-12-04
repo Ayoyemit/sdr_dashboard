@@ -9,7 +9,7 @@ import seaborn as sns
 import cProfile
 import pstats
 import io
-from project_parameters import get_parameters, get_slider_params
+from parameters import get_parameters, get_slider_params
 from model_run import run_model_dash
 from global_func import reset_flags, reset_E, reset_HSS, reset_S, get_P_l45, odds_prob, sample_from_ci
 

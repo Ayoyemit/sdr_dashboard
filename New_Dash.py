@@ -1656,23 +1656,11 @@ if st.session_state.b_df is not None and st.session_state.i_df is not None:
                     df_ind_int = prepare_df_ce(i_df, indicator, n_months, n_runs, 'Intervention', ncols)
                     df_ind_base['Cumulative_Counts'] = df_ind_base['Counts'].cumsum()
                     df_ind_int['Cumulative_Counts'] = df_ind_int['Counts'].cumsum()
-                    
-                    # Merge on 'Month' to ensure proper alignment before arithmetic operations
-                    df_merged = df_ind_base[['Month', 'Counts', 'Cumulative_Counts']].merge(
-                        df_ind_int[['Month', 'Counts', 'Cumulative_Counts']], 
-                        on='Month', 
-                        suffixes=('_base', '_int')
-                    )
-                    
-                    df_ind_diff = df_merged[['Month']].copy()
-                    if order == 'baseline first':
-                        df_ind_diff['Cum_Count_Diff'] = df_merged['Cumulative_Counts_base'] - df_merged['Cumulative_Counts_int']
-                        df_ind_diff['Count_Diff'] = df_merged['Counts_base'] - df_merged['Counts_int']
-                    else:
-                        df_ind_diff['Cum_Count_Diff'] = df_merged['Cumulative_Counts_int'] - df_merged['Cumulative_Counts_base']
-                        df_ind_diff['Count_Diff'] = df_merged['Counts_int'] - df_merged['Counts_base']
-                    df_ind_diff['Count_Int'] = df_merged['Counts_int']
-                    df_ind_diff['Cum_Count_Int'] = df_merged['Cumulative_Counts_int']
+                    df_ind_diff = df_ind_base[['Month']].copy()
+                    df_ind_diff['Cum_Count_Diff'] = df_ind_base['Cumulative_Counts'] - df_ind_int['Cumulative_Counts'] if order == 'baseline first' else df_ind_int['Cumulative_Counts'] - df_ind_base['Cumulative_Counts']
+                    df_ind_diff['Count_Diff'] = df_ind_base['Counts'] - df_ind_int['Counts'] if order == 'baseline first' else df_ind_int['Counts'] - df_ind_base['Counts']
+                    df_ind_diff['Count_Int'] = df_ind_int['Counts']
+                    df_ind_diff['Cum_Count_Int'] = df_ind_int['Cumulative_Counts']
                     return df_ind_diff
 
                 df_daly_avt = acum_ind_df('DALYs', 4,'baseline first')

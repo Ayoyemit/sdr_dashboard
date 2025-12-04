@@ -3583,4 +3583,3 @@ if opt_config.debug_mode:
     st.sidebar.write(f"Memory optimized: {opt_config.memory_optimized}")
     st.sidebar.write(f"Cache enabled: {opt_config.cache_enabled}")
     st.sidebar.write(f"Debug mode: {opt_config.debug_mode}")
-

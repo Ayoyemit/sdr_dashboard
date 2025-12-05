@@ -1171,77 +1171,76 @@ if ("sankey_baseline" in st.session_state and "sankey_scenario" in st.session_st
     st.markdown("#### 💾 Download Sankey Diagrams")
     col_download1, col_download2, col_download3 = st.columns(3)
 
-    # Check if kaleido is available for image export
-    kaleido_available = False
-    try:
-        import kaleido
-        kaleido_available = True
-    except (ImportError, Exception):
-        kaleido_available = False
-
     # Prepare images (high-resolution)
-    if kaleido_available:
+    try:
+        baseline_png = st.session_state.sankey_baseline.to_image(format="png", width=1400, height=700, scale=2)
+        scenario_png = st.session_state.sankey_scenario.to_image(format="png", width=1400, height=700, scale=2)
+
+        # Compose a combined PNG (side-by-side) using Pillow if available
+        combined_png = None
         try:
-            baseline_png = st.session_state.sankey_baseline.to_image(format="png", width=1400, height=700, scale=2)
-            scenario_png = st.session_state.sankey_scenario.to_image(format="png", width=1400, height=700, scale=2)
-
-            # Compose a combined PNG (side-by-side) using Pillow if available
+            from PIL import Image
+            from io import BytesIO
+            base_img = Image.open(BytesIO(baseline_png)).convert("RGBA")
+            scen_img = Image.open(BytesIO(scenario_png)).convert("RGBA")
+            total_width = base_img.width + scen_img.width
+            max_height = max(base_img.height, scen_img.height)
+            combined_img = Image.new("RGBA", (total_width, max_height), (255, 255, 255, 0))
+            combined_img.paste(base_img, (0, 0))
+            combined_img.paste(scen_img, (base_img.width, 0))
+            buf = BytesIO()
+            combined_img.save(buf, format="PNG")
+            combined_png = buf.getvalue()
+        except Exception:
             combined_png = None
-            try:
-                from PIL import Image
-                from io import BytesIO
-                base_img = Image.open(BytesIO(baseline_png)).convert("RGBA")
-                scen_img = Image.open(BytesIO(scenario_png)).convert("RGBA")
-                total_width = base_img.width + scen_img.width
-                max_height = max(base_img.height, scen_img.height)
-                combined_img = Image.new("RGBA", (total_width, max_height), (255, 255, 255, 0))
-                combined_img.paste(base_img, (0, 0))
-                combined_img.paste(scen_img, (base_img.width, 0))
-                buf = BytesIO()
-                combined_img.save(buf, format="PNG")
-                combined_png = buf.getvalue()
-            except Exception:
-                combined_png = None
 
-            with col_download1:
+        with col_download1:
+            st.download_button(
+                label="📥 Baseline (PNG)",
+                data=baseline_png,
+                file_name=f"baseline_{st.session_state.selected_pathway.replace(' ', '_').lower()}_sankey.png",
+                mime="image/png",
+                use_container_width=True
+            )
+
+        with col_download2:
+            st.download_button(
+                label="📥 Scenario (PNG)",
+                data=scenario_png,
+                file_name=f"scenario_{st.session_state.selected_pathway.replace(' ', '_').lower()}_sankey.png",
+                mime="image/png",
+                use_container_width=True
+            )
+
+        with col_download3:
+            if combined_png is not None:
                 st.download_button(
-                    label="📥 Baseline (PNG)",
-                    data=baseline_png,
-                    file_name=f"baseline_{st.session_state.selected_pathway.replace(' ', '_').lower()}_sankey.png",
+                    label="📥 Combined (PNG)",
+                    data=combined_png,
+                    file_name=f"combined_{st.session_state.selected_pathway.replace(' ', '_').lower()}_sankey.png",
                     mime="image/png",
                     use_container_width=True
                 )
-
-            with col_download2:
-                st.download_button(
-                    label="📥 Scenario (PNG)",
-                    data=scenario_png,
-                    file_name=f"scenario_{st.session_state.selected_pathway.replace(' ', '_').lower()}_sankey.png",
-                    mime="image/png",
-                    use_container_width=True
-                )
-
-            with col_download3:
-                if combined_png is not None:
-                    st.download_button(
-                        label="📥 Combined (PNG)",
-                        data=combined_png,
-                        file_name=f"combined_{st.session_state.selected_pathway.replace(' ', '_').lower()}_sankey.png",
-                        mime="image/png",
-                        use_container_width=True
-                    )
-                else:
-                    st.caption("Install Pillow to enable combined PNG export: pip install pillow")
-        except Exception as e:
+            else:
+                st.caption("Install Pillow to enable combined PNG export: pip install pillow")
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "chrome" in error_msg or "plotly_get_chrome" in error_msg:
+            st.warning("⚠️ PNG export is not available on Streamlit Cloud.")
+            st.info("""
+            **Why?** Kaleido requires Google Chrome to generate PNG images, but Chrome is not available on Streamlit Cloud servers.
+            
+            **Alternatives:**
+            1. **Use HTML export** - The interactive diagrams above can be downloaded as HTML files (right-click → Save as)
+            2. **Export locally** - Run the app locally where Chrome is installed to enable PNG downloads
+            3. **Screenshot** - Use your browser's screenshot feature to capture the diagrams
+            """)
+        elif "kaleido" in error_msg or "import" in error_msg:
+            st.warning("⚠️ Image export requires the 'kaleido' package. Please install it to enable PNG downloads.")
+            st.code("pip install -U kaleido", language="bash")
+        else:
             st.warning(f"⚠️ Error generating PNG images: {str(e)}")
-            st.info("💡 The kaleido package may need to be reinstalled. Please check Streamlit Cloud deployment logs.")
-    else:
-        st.warning("⚠️ Image export requires the 'kaleido' package.")
-        st.info("💡 Kaleido is listed in requirements.txt. If you see this message, please:")
-        st.markdown("1. **Check Streamlit Cloud deployment logs** to verify kaleido installed successfully")
-        st.markdown("2. **Manually trigger a redeploy** from the Streamlit Cloud dashboard")
-        st.markdown("3. **Wait for the deployment to complete** (usually 1-2 minutes)")
-        st.code("pip install -U kaleido", language="bash")
+            st.info("💡 PNG export may not be available in this environment. Try using HTML export or running locally.")
 
 
 if "b_df" in st.session_state and "i_df" in st.session_state and st.session_state.model_finished:

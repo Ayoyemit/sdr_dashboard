@@ -1171,28 +1171,37 @@ if ("sankey_baseline" in st.session_state and "sankey_scenario" in st.session_st
     st.markdown("#### 💾 Download Sankey Diagrams")
     col_download1, col_download2, col_download3 = st.columns(3)
 
-    # Prepare images (high-resolution)
+    # Check if kaleido is available for image export
+    kaleido_available = False
     try:
-        baseline_png = st.session_state.sankey_baseline.to_image(format="png", width=1400, height=700, scale=2)
-        scenario_png = st.session_state.sankey_scenario.to_image(format="png", width=1400, height=700, scale=2)
+        import kaleido
+        kaleido_available = True
+    except (ImportError, Exception):
+        kaleido_available = False
 
-        # Compose a combined PNG (side-by-side) using Pillow if available
-        combined_png = None
+    # Prepare images (high-resolution)
+    if kaleido_available:
         try:
-            from PIL import Image
-            from io import BytesIO
-            base_img = Image.open(BytesIO(baseline_png)).convert("RGBA")
-            scen_img = Image.open(BytesIO(scenario_png)).convert("RGBA")
-            total_width = base_img.width + scen_img.width
-            max_height = max(base_img.height, scen_img.height)
-            combined_img = Image.new("RGBA", (total_width, max_height), (255, 255, 255, 0))
-            combined_img.paste(base_img, (0, 0))
-            combined_img.paste(scen_img, (base_img.width, 0))
-            buf = BytesIO()
-            combined_img.save(buf, format="PNG")
-            combined_png = buf.getvalue()
-        except Exception:
+            baseline_png = st.session_state.sankey_baseline.to_image(format="png", width=1400, height=700, scale=2)
+            scenario_png = st.session_state.sankey_scenario.to_image(format="png", width=1400, height=700, scale=2)
+
+            # Compose a combined PNG (side-by-side) using Pillow if available
             combined_png = None
+            try:
+                from PIL import Image
+                from io import BytesIO
+                base_img = Image.open(BytesIO(baseline_png)).convert("RGBA")
+                scen_img = Image.open(BytesIO(scenario_png)).convert("RGBA")
+                total_width = base_img.width + scen_img.width
+                max_height = max(base_img.height, scen_img.height)
+                combined_img = Image.new("RGBA", (total_width, max_height), (255, 255, 255, 0))
+                combined_img.paste(base_img, (0, 0))
+                combined_img.paste(scen_img, (base_img.width, 0))
+                buf = BytesIO()
+                combined_img.save(buf, format="PNG")
+                combined_png = buf.getvalue()
+            except Exception:
+                combined_png = None
 
             with col_download1:
                 st.download_button(

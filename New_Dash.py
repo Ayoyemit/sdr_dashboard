@@ -1169,6 +1169,33 @@ if ("sankey_baseline" in st.session_state and "sankey_scenario" in st.session_st
     
     # Add download options for the diagrams
     st.markdown("#### 💾 Download Sankey Diagrams")
+    
+    # HTML export (always available, works client-side)
+    st.markdown("##### 📄 HTML Export (Recommended for Streamlit Cloud)")
+    col_html1, col_html2 = st.columns(2)
+    
+    with col_html1:
+        baseline_html = st.session_state.sankey_baseline.to_html(include_plotlyjs='cdn')
+        st.download_button(
+            label="📥 Baseline (HTML)",
+            data=baseline_html,
+            file_name=f"baseline_{st.session_state.selected_pathway.replace(' ', '_').lower()}_sankey.html",
+            mime="text/html",
+            use_container_width=True
+        )
+    
+    with col_html2:
+        scenario_html = st.session_state.sankey_scenario.to_html(include_plotlyjs='cdn')
+        st.download_button(
+            label="📥 Scenario (HTML)",
+            data=scenario_html,
+            file_name=f"scenario_{st.session_state.selected_pathway.replace(' ', '_').lower()}_sankey.html",
+            mime="text/html",
+            use_container_width=True
+        )
+    
+    # PNG export (requires Chrome on server - not available on Streamlit Cloud)
+    st.markdown("##### 🖼️ PNG Export (Requires Chrome on Server)")
     col_download1, col_download2, col_download3 = st.columns(3)
 
     # Prepare images (high-resolution)
@@ -1226,21 +1253,15 @@ if ("sankey_baseline" in st.session_state and "sankey_scenario" in st.session_st
     except Exception as e:
         error_msg = str(e).lower()
         if "chrome" in error_msg or "plotly_get_chrome" in error_msg:
-            st.warning("⚠️ PNG export is not available on Streamlit Cloud.")
             st.info("""
-            **Why?** Kaleido requires Google Chrome to generate PNG images, but Chrome is not available on Streamlit Cloud servers.
+            **Note:** PNG export requires Google Chrome to be installed on the Streamlit Cloud server, which is not available. 
             
-            **Alternatives:**
-            1. **Use HTML export** - The interactive diagrams above can be downloaded as HTML files (right-click → Save as)
-            2. **Export locally** - Run the app locally where Chrome is installed to enable PNG downloads
-            3. **Screenshot** - Use your browser's screenshot feature to capture the diagrams
+            **Solution:** Use the HTML export above (works perfectly and preserves interactivity). 
+            You can also open the HTML files and use your browser's print-to-PDF feature or screenshot tools.
             """)
-        elif "kaleido" in error_msg or "import" in error_msg:
-            st.warning("⚠️ Image export requires the 'kaleido' package. Please install it to enable PNG downloads.")
-            st.code("pip install -U kaleido", language="bash")
         else:
-            st.warning(f"⚠️ Error generating PNG images: {str(e)}")
-            st.info("💡 PNG export may not be available in this environment. Try using HTML export or running locally.")
+            st.warning(f"⚠️ PNG export error: {str(e)}")
+            st.info("💡 Use HTML export above as an alternative - it works on all platforms and preserves full interactivity.")
 
 
 if "b_df" in st.session_state and "i_df" in st.session_state and st.session_state.model_finished:

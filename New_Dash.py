@@ -1172,9 +1172,10 @@ if ("sankey_baseline" in st.session_state and "sankey_scenario" in st.session_st
     col_download1, col_download2, col_download3 = st.columns(3)
 
     # Prepare images (high-resolution)
-    try:
-        baseline_png = st.session_state.sankey_baseline.to_image(format="png", width=1400, height=700, scale=2)
-        scenario_png = st.session_state.sankey_scenario.to_image(format="png", width=1400, height=700, scale=2)
+    if kaleido_available:
+        try:
+            baseline_png = st.session_state.sankey_baseline.to_image(format="png", width=1400, height=700, scale=2)
+            scenario_png = st.session_state.sankey_scenario.to_image(format="png", width=1400, height=700, scale=2)
 
             # Compose a combined PNG (side-by-side) using Pillow if available
             combined_png = None

@@ -27,10 +27,11 @@ def _run_single(
 ) -> tuple[ScenarioResult, dict]:
     from global_func import reset_E, reset_HSS, reset_S, reset_flags
     from model_run import run_model_dash
-    from parameters import calculate_derived_parameters, get_parameters, get_slider_params
+    from parameter_loader import calculate_derived_parameters, get_parameters, get_slider_params
 
     i_flags, i_e, i_s, i_hss, warnings = scenario_to_sim_inputs(req)
-    slider_params = get_slider_params()
+    county = req.county or "kakamega"
+    slider_params = get_slider_params(county=county)
 
     n_months = req.run.implementation_years * 12 + req.run.maintenance_years * 12
     int_period = req.run.implementation_years * 12
@@ -41,9 +42,9 @@ def _run_single(
     master_rng = np.random.default_rng(base_seed)
     base_seeds = master_rng.integers(low=0, high=1_000_000, size=n_months)
 
-    b_param = get_parameters(rng=np.random.default_rng(base_seed))
+    b_param = get_parameters(rng=np.random.default_rng(base_seed), county=county)
     b_param = calculate_derived_parameters(b_param)
-    i_param = get_parameters(rng=np.random.default_rng(base_seed))
+    i_param = get_parameters(rng=np.random.default_rng(base_seed), county=county)
     i_param = calculate_derived_parameters(i_param)
 
     b_flags = reset_flags()
@@ -91,10 +92,11 @@ def run_scenario(req: ScenarioRequest, base_seed: Optional[int] = None) -> Scena
 
     from global_func import reset_E, reset_HSS, reset_S, reset_flags
     from model_run import run_model_dash
-    from parameters import calculate_derived_parameters, get_parameters, get_slider_params
+    from parameter_loader import calculate_derived_parameters, get_parameters, get_slider_params
 
     i_flags, i_e, i_s, i_hss, warnings = scenario_to_sim_inputs(req)
-    slider_params = get_slider_params()
+    county = req.county or "kakamega"
+    slider_params = get_slider_params(county=county)
     n_months = req.run.implementation_years * 12 + req.run.maintenance_years * 12
     int_period = req.run.implementation_years * 12
 
@@ -106,9 +108,9 @@ def run_scenario(req: ScenarioRequest, base_seed: Optional[int] = None) -> Scena
         master_rng = np.random.default_rng(int(seed))
         base_seeds = master_rng.integers(low=0, high=1_000_000, size=n_months)
 
-        b_param = get_parameters(rng=np.random.default_rng(int(seed)))
+        b_param = get_parameters(rng=np.random.default_rng(int(seed)), county=county)
         b_param = calculate_derived_parameters(b_param)
-        i_param = get_parameters(rng=np.random.default_rng(int(seed)))
+        i_param = get_parameters(rng=np.random.default_rng(int(seed)), county=county)
         i_param = calculate_derived_parameters(i_param)
 
         b_flags = reset_flags()

@@ -50,14 +50,27 @@ SAMPLED_ARRAYS = {
 
 # ---------------------------------------------------------------------------
 # Module-level workbook path and county default.
-# Override WORKBOOK_PATH at runtime by setting the SDR_PARAMS_PATH env var,
-# e.g. for server deployment:  export SDR_PARAMS_PATH=/app/SDR_Parameters.xlsx
+# Override at runtime with SDR_PARAMS_PATH, e.g.:
+#   export SDR_PARAMS_PATH=/app/sim/SDR_Parameters.xlsx
+# Default prefers a local/bundled workbook, then Poppy's OneDrive path if present.
 # ---------------------------------------------------------------------------
-WORKBOOK_PATH: Path = Path(os.environ.get(
-    "SDR_PARAMS_PATH",
+_BUNDLED_WORKBOOK = Path(__file__).resolve().parent / "SDR Parameters.xlsx"
+_POPPY_WORKBOOK = Path(
     "/Users/poppy/Library/CloudStorage/OneDrive-SharedLibraries-JohnsHopkins/"
-    "Meibin Chen - MOMISH interventions/SDR Parameters.xlsx",
-))
+    "Meibin Chen - MOMISH interventions/SDR Parameters.xlsx"
+)
+
+
+def _default_workbook_path() -> Path:
+    env = os.environ.get("SDR_PARAMS_PATH")
+    if env:
+        return Path(env)
+    if _BUNDLED_WORKBOOK.exists():
+        return _BUNDLED_WORKBOOK
+    return _POPPY_WORKBOOK
+
+
+WORKBOOK_PATH: Path = _default_workbook_path()
 DEFAULT_COUNTY: str = "kakamega"
 
 # Disability-weight labels expected by existing DALY code.
@@ -483,6 +496,13 @@ def _build_params(
         "p_cs_capacity_sdr_sensor": np.array([0, 0, 0.1215, 0.1215], dtype=float),
         "transfer_delay_shift_2plus": 0.60,
         "transfer_delay_shift_1_2": 0.40,
+        # Transfer-delay mortality pathway (Makueni-calibrated defaults).
+        # Present in Poppy's OneDrive workbook; fall back when using the bundled file.
+        "transfer_delay_probs_l23": np.array([0.29, 0.47, 0.24], dtype=float),
+        "transfer_delay_probs_l45": np.array([0.69, 0.15, 0.15], dtype=float),
+        "transfer_delay_rr_scale": 0.969442,
+        "RR_transfer_delay_1_2": 2.11,
+        "RR_transfer_delay_2plus": 2.39,
     }
     for key, default in required_defaults.items():
         param.setdefault(key, default)

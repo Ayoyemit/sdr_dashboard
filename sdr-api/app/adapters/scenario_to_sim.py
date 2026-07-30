@@ -21,7 +21,7 @@ def _ensure_sim_imports():
     global _get_slider_params, _reset_flags, _reset_E, _reset_HSS, _reset_S, _get_P_l45
     if _reset_flags is None:
         from global_func import get_P_l45, reset_E, reset_flags, reset_HSS, reset_S
-        from parameters import get_slider_params
+        from parameter_loader import get_slider_params
 
         _get_slider_params = get_slider_params
         _reset_flags = reset_flags

@@ -17,13 +17,13 @@ import {
   IndicatorChartSpec,
 } from "@/lib/indicator-series";
 import {
-  chartLegendProps,
-  chartMarginsWithLegend,
   chartTooltipProps,
   ChartValueKind,
+  getChartLayout,
   xAxisLabel,
   yAxisLabel,
 } from "@/lib/chart-labels";
+import { useIsMobile } from "@/lib/use-breakpoint";
 
 interface Props {
   months: number[];
@@ -44,6 +44,8 @@ export default function BaselineInterventionChart({
   className = "mt-6",
 }: Props) {
   const { t } = useLocale();
+  const isMobile = useIsMobile();
+  const chartLayout = getChartLayout(isMobile);
   const scale = spec.displayScale ?? 1;
   const valueKind: ChartValueKind =
     scale !== 1 && spec.valueKind === "default" ? "percent" : spec.valueKind;
@@ -64,15 +66,15 @@ export default function BaselineInterventionChart({
         showTitle
       >
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={chartMarginsWithLegend}>
+          <LineChart data={data} margin={chartLayout.marginsWithLegend}>
             <CartesianGrid strokeDasharray="3 3" stroke="#E2DAC8" />
             <XAxis
               dataKey="month"
-              tick={{ fontSize: 10 }}
+              tick={chartLayout.tick}
               label={xAxisLabel(t("charts.month"))}
             />
             <YAxis
-              tick={{ fontSize: 10 }}
+              tick={chartLayout.tick}
               label={yAxisLabel(t(spec.yLabelKey))}
             />
             <Tooltip
@@ -81,7 +83,7 @@ export default function BaselineInterventionChart({
                 labelPrefix: t("charts.month"),
               })}
             />
-            <Legend {...chartLegendProps} />
+            <Legend {...chartLayout.legend} />
             <Line
               type="monotone"
               dataKey="baseline"

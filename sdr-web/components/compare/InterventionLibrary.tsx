@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   applyIntervention,
   GROUP_LABELS,
@@ -43,9 +44,7 @@ function LibButton({
     <button
       type="button"
       onClick={onClick}
-      className={`px-3 py-1 rounded text-[11px] flex items-center justify-center gap-1 border border-border text-ink-soft hover:bg-paper-deep ${
-        active ? "" : ""
-      }`}
+      className="min-h-[44px] px-3 py-2 rounded text-[11px] flex items-center justify-center gap-1 border border-border text-ink-soft hover:bg-paper-deep"
       style={active ? styles : undefined}
     >
       {active ? "✓" : "+"} {label}
@@ -60,15 +59,17 @@ function wiredBadge(item: LibraryItem) {
   return <span className="text-[9px] text-warning ml-1">● partial</span>;
 }
 
-export default function InterventionLibrary({ scenarioA, scenarioB, onAdd }: Props) {
+function LibraryContent({
+  scenarioA,
+  scenarioB,
+  onAdd,
+}: {
+  scenarioA: Scenario;
+  scenarioB: Scenario;
+  onAdd: (target: ColumnTarget, id: InterventionId) => void;
+}) {
   return (
-    <aside className="sticky top-28">
-      <h2 className="font-display text-2xl leading-tight mb-1">Intervention Library</h2>
-      <p className="text-xs text-ink-muted mb-5">
-        Click <span className="num">+ A</span> or <span className="num">+ B</span> to add to a
-        scenario.
-      </p>
-
+    <>
       {GROUPS.map((group) => {
         const meta = GROUP_LABELS[group];
         const items = INTERVENTION_LIBRARY.filter((i) => i.group === group);
@@ -113,6 +114,40 @@ export default function InterventionLibrary({ scenarioA, scenarioB, onAdd }: Pro
       <div className="mt-3 pl-4 pt-2 border-t border-border-soft text-[9px] text-ink-muted leading-relaxed">
         <span className="text-positive">●</span> drives simulation ·{" "}
         <span className="text-warning">●</span> UI controls only (model wiring pending)
+      </div>
+    </>
+  );
+}
+
+export default function InterventionLibrary({ scenarioA, scenarioB, onAdd }: Props) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <aside className="lg:sticky lg:top-24 h-fit">
+      <div className="lg:hidden mb-4">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="w-full min-h-[44px] flex items-center justify-between px-4 py-3 bg-card border border-border rounded-xl text-sm font-medium"
+          aria-expanded={open}
+        >
+          <span>Add interventions</span>
+          <span className="text-ink-muted">{open ? "−" : "+"}</span>
+        </button>
+        {open && (
+          <div className="mt-3 p-4 bg-card border border-border rounded-xl max-h-[60vh] overflow-y-auto">
+            <LibraryContent scenarioA={scenarioA} scenarioB={scenarioB} onAdd={onAdd} />
+          </div>
+        )}
+      </div>
+
+      <div className="hidden lg:block">
+        <h2 className="font-display text-2xl leading-tight mb-1">Intervention Library</h2>
+        <p className="text-xs text-ink-muted mb-5">
+          Click <span className="num">+ A</span> or <span className="num">+ B</span> to add to a
+          scenario.
+        </p>
+        <LibraryContent scenarioA={scenarioA} scenarioB={scenarioB} onAdd={onAdd} />
       </div>
     </aside>
   );

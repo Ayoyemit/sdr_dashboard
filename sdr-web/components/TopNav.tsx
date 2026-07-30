@@ -24,7 +24,7 @@ function getNavMode(pathname: string): NavMode {
 
 function NavLogo({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-2.5 shrink-0 min-w-0">
+    <Link href="/" className="flex items-center gap-2.5 shrink-0 min-w-0 min-h-[44px]">
       <div className="w-8 h-8 rounded-md bg-paper-deep border border-border flex items-center justify-center shrink-0">
         <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" aria-hidden>
           <path
@@ -57,7 +57,7 @@ function StepNav({ steps, activeHref }: { steps: StepDef[]; activeHref: string }
 
   return (
     <nav
-      className="flex items-center gap-0.5 min-w-0 overflow-x-auto scrollbar-none"
+      className="hidden md:flex items-center gap-0.5 min-w-0"
       aria-label={t("nav.workflow")}
     >
       {steps.map((step, i) => {
@@ -68,7 +68,7 @@ function StepNav({ steps, activeHref }: { steps: StepDef[]; activeHref: string }
             <Link
               href={step.href}
               aria-current={active ? "page" : undefined}
-              className={`px-2.5 py-1 rounded-md text-sm whitespace-nowrap transition ${
+              className={`min-h-[44px] inline-flex items-center px-2.5 py-1 rounded-md text-sm whitespace-nowrap transition ${
                 active
                   ? "bg-card text-ink font-medium shadow-sm border border-border/60"
                   : "text-ink-muted hover:text-ink-soft"
@@ -83,12 +83,21 @@ function StepNav({ steps, activeHref }: { steps: StepDef[]; activeHref: string }
   );
 }
 
+function MobileStepLabel({ steps, activeHref }: { steps: StepDef[]; activeHref: string }) {
+  const active = steps.find((s) => s.href === activeHref) ?? steps[0];
+  return (
+    <span className="md:hidden text-sm font-medium text-ink truncate max-w-[8rem] sm:max-w-none">
+      {active?.label}
+    </span>
+  );
+}
+
 function ShareModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useLocale();
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-      <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink/40 p-0 sm:p-4 safe-bottom">
+      <div className="bg-card border border-border rounded-t-xl sm:rounded-lg p-6 max-w-md w-full shadow-xl max-h-[90dvh] overflow-y-auto">
         <h3 className="font-display text-lg mb-2">{t("nav.shareTitle")}</h3>
         <p className="text-sm text-ink-muted mb-4">{t("nav.shareHint")}</p>
         <input
@@ -99,7 +108,7 @@ function ShareModal({ open, onClose }: { open: boolean; onClose: () => void }) {
         <button
           type="button"
           onClick={onClose}
-          className="w-full py-2 bg-ink text-paper rounded-md text-sm"
+          className="w-full min-h-[44px] py-2 bg-ink text-paper rounded-md text-sm"
         >
           {t("nav.close")}
         </button>
@@ -137,8 +146,10 @@ function WorkflowNavBar({
   return (
     <>
       <header className="border-b border-border bg-paper/95 backdrop-blur sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-2.5 flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-2.5 flex items-center gap-2 sm:gap-3">
           <NavLogo compact />
+
+          <MobileStepLabel steps={steps} activeHref={activeHref} />
 
           <div className="flex-1 flex justify-center min-w-0 px-1">
             <StepNav steps={steps} activeHref={activeHref} />
@@ -150,6 +161,8 @@ function WorkflowNavBar({
               compareHref={compareHref}
               showCompare={showCompareLink}
               onShare={showShare ? () => setShareOpen(true) : undefined}
+              workflowSteps={steps}
+              activeStepHref={activeHref}
             />
           </div>
         </div>
@@ -207,17 +220,19 @@ export default function TopNav() {
                 </span>
                 <Link
                   href="/"
-                  className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-paper-deep transition whitespace-nowrap"
+                  className="min-h-[44px] inline-flex items-center px-3 py-1.5 text-sm border border-border rounded-md hover:bg-paper-deep transition whitespace-nowrap"
                 >
-                  ← {t("nav.start")}
+                  <span className="hidden xs:inline">← </span>
+                  {t("nav.start")}
                 </Link>
               </>
             ) : (
               <Link
                 href="/about"
-                className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-paper-deep transition whitespace-nowrap"
+                className="min-h-[44px] inline-flex items-center px-3 py-1.5 text-sm border border-border rounded-md hover:bg-paper-deep transition whitespace-nowrap"
               >
-                {t("nav.about")}
+                <span className="hidden sm:inline">{t("nav.about")}</span>
+                <span className="sm:hidden">?</span>
               </Link>
             )}
           </>

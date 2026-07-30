@@ -6,13 +6,26 @@ import { useCounty } from "@/components/county/CountyProvider";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { COUNTIES } from "@/lib/counties";
 
+interface WorkflowStep {
+  href: string;
+  label: string;
+}
+
 interface Props {
   compareHref?: string;
   showCompare?: boolean;
   onShare?: () => void;
+  workflowSteps?: WorkflowStep[];
+  activeStepHref?: string;
 }
 
-export default function NavOverflowMenu({ compareHref, showCompare, onShare }: Props) {
+export default function NavOverflowMenu({
+  compareHref,
+  showCompare,
+  onShare,
+  workflowSteps,
+  activeStepHref,
+}: Props) {
   const { t } = useLocale();
   const { countyId, setCountyId } = useCounty();
   const [open, setOpen] = useState(false);
@@ -31,7 +44,7 @@ export default function NavOverflowMenu({ compareHref, showCompare, onShare }: P
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="p-2 rounded-md border border-border text-ink-muted hover:text-ink hover:bg-paper-deep transition"
+        className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md border border-border text-ink-muted hover:text-ink hover:bg-paper-deep transition"
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={t("nav.menu")}
@@ -46,8 +59,30 @@ export default function NavOverflowMenu({ compareHref, showCompare, onShare }: P
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-1 w-56 bg-card border border-border rounded-xl shadow-lg z-50 py-1 overflow-hidden"
+          className="absolute right-0 top-full mt-1 w-56 max-w-[calc(100vw-2rem)] bg-card border border-border rounded-xl shadow-lg z-50 py-1 overflow-hidden max-h-[min(80dvh,24rem)] overflow-y-auto safe-bottom"
         >
+          {workflowSteps && workflowSteps.length > 0 && (
+            <>
+              <div className="px-3 py-2 text-[10px] uppercase tracking-[0.15em] text-ink-muted border-b border-border-soft md:hidden">
+                {t("nav.goTo")}
+              </div>
+              {workflowSteps.map((step) => (
+                <Link
+                  key={step.href}
+                  href={step.href}
+                  role="menuitem"
+                  className={`block px-3 py-2.5 text-sm min-h-[44px] flex items-center hover:bg-paper-deep/60 md:hidden ${
+                    step.href === activeStepHref ? "bg-paper-deep/40 font-medium" : ""
+                  }`}
+                  onClick={() => setOpen(false)}
+                >
+                  {step.label}
+                </Link>
+              ))}
+              <div className="border-t border-border-soft my-1 md:hidden" />
+            </>
+          )}
+
           <div className="px-3 py-2 text-[10px] uppercase tracking-[0.15em] text-ink-muted border-b border-border-soft">
             {t("nav.countyScope")}
           </div>
@@ -56,7 +91,7 @@ export default function NavOverflowMenu({ compareHref, showCompare, onShare }: P
               key={c.id}
               type="button"
               role="menuitem"
-              className={`w-full text-left px-3 py-2 text-sm flex justify-between items-center gap-2 hover:bg-paper-deep/60 ${
+              className={`w-full text-left px-3 py-2.5 text-sm min-h-[44px] flex justify-between items-center gap-2 hover:bg-paper-deep/60 ${
                 c.id === countyId ? "bg-paper-deep/40 font-medium" : ""
               }`}
               onClick={() => {
@@ -81,7 +116,7 @@ export default function NavOverflowMenu({ compareHref, showCompare, onShare }: P
             <Link
               href={compareHref}
               role="menuitem"
-              className="block px-3 py-2 text-sm hover:bg-paper-deep/60"
+              className="block px-3 py-2.5 text-sm min-h-[44px] flex items-center hover:bg-paper-deep/60"
               onClick={() => setOpen(false)}
             >
               {t("nav.compare")}
@@ -90,7 +125,7 @@ export default function NavOverflowMenu({ compareHref, showCompare, onShare }: P
           <Link
             href="/about"
             role="menuitem"
-            className="block px-3 py-2 text-sm hover:bg-paper-deep/60"
+            className="block px-3 py-2.5 text-sm min-h-[44px] flex items-center hover:bg-paper-deep/60"
             onClick={() => setOpen(false)}
           >
             {t("nav.about")}
@@ -99,7 +134,7 @@ export default function NavOverflowMenu({ compareHref, showCompare, onShare }: P
             <button
               type="button"
               role="menuitem"
-              className="w-full text-left px-3 py-2 text-sm hover:bg-paper-deep/60"
+              className="w-full text-left px-3 py-2.5 text-sm min-h-[44px] hover:bg-paper-deep/60"
               onClick={() => {
                 setOpen(false);
                 onShare();

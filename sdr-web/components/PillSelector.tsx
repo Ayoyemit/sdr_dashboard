@@ -8,13 +8,13 @@ interface PillSelectorProps {
 
 export default function PillSelector({ options, value, onChange }: PillSelectorProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2 sm:gap-2">
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
-          className={`pill px-4 py-2 rounded-full border border-border text-sm ${
+          className={`pill min-h-[44px] px-4 py-2 rounded-full border border-border text-sm ${
             value === opt.value ? "active" : "bg-card hover:bg-paper-deep"
           }`}
         >

@@ -16,7 +16,7 @@ export const en: TranslationTree = {
       "Copy the URL from your browser to share your current scenario configuration.",
     close: "Close",
     workflow: "Workflow steps",
-    mobileHint: "Best experienced on desktop (1280px+)",
+    goTo: "Go to",
   },
   lang: {
     en: "English",

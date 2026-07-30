@@ -104,7 +104,7 @@ function ResultsContent() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-8 py-16 text-center">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-16 text-center">
         <p className="text-ink-muted">{t("common.loading")}</p>
       </div>
     );
@@ -112,7 +112,7 @@ function ResultsContent() {
 
   if (error || !result || !scenario || !executiveSummary) {
     return (
-      <div className="max-w-7xl mx-auto px-8 py-16 text-center">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-16 text-center">
         <p className="text-negative mb-4">{error}</p>
         <Link href="/design" className="text-accent underline">
           {t("nav.design")}
@@ -123,8 +123,8 @@ function ResultsContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <div className="mb-6 flex flex-col sm:flex-row sm:flex-wrap sm:items-start sm:justify-between gap-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-3 mb-2 flex-wrap">
             <span className="text-[11px] tracking-[0.2em] text-accent uppercase">{t("results.step")}</span>
             {sessionOnly && (
@@ -133,7 +133,7 @@ function ResultsContent() {
               </span>
             )}
           </div>
-          <h1 className="font-display text-3xl mb-1">{t("results.title")}</h1>
+          <h1 className="font-display text-2xl sm:text-3xl mb-1">{t("results.title")}</h1>
           <p className="text-ink-muted text-sm">
             {scenario.name} ·{" "}
             {t("common.yearsHorizon", {
@@ -142,7 +142,7 @@ function ResultsContent() {
             · {t("common.vsBaseline")}
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap items-start justify-end">
+        <div className="flex flex-col sm:flex-row gap-2 flex-wrap items-stretch sm:items-start sm:justify-end w-full sm:w-auto">
           <BackToLastComparisonLink />
           <ResultsExportBar
             mode="scenario"
@@ -160,7 +160,7 @@ function ResultsContent() {
         </div>
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-6 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
         <ViewModeToggle mode={viewMode} onChange={setViewMode} />
         {viewMode === "analyst" && (
           <p className="text-xs text-ink-muted">{t("results.analystHint")}</p>
@@ -197,12 +197,12 @@ function ResultsContent() {
         <ResultsStories result={result} selectedIndicators={displayIndicators} />
       </div>
 
-      <div className="mt-12 flex gap-4 flex-wrap items-center">
-        <Link href={designHref} className="px-6 py-3 border border-border rounded-md hover:bg-paper-deep">
+      <div className="mt-12 flex flex-col sm:flex-row gap-3 sm:gap-4 flex-wrap items-stretch sm:items-center">
+        <Link href={designHref} className="min-h-[44px] inline-flex items-center justify-center px-6 py-3 border border-border rounded-md hover:bg-paper-deep text-center">
           ← {t("common.adjustScenario")}
         </Link>
         <BackToLastComparisonLink variant="text" />
-        <Link href="/compare" className="px-6 py-3 bg-ink text-paper rounded-md">
+        <Link href="/compare" className="min-h-[44px] inline-flex items-center justify-center px-6 py-3 bg-ink text-paper rounded-md text-center">
           {t("common.newComparison")} →
         </Link>
       </div>

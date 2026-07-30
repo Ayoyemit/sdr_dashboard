@@ -13,7 +13,7 @@ export default function ViewModeToggle({ mode, onChange }: Props) {
 
   return (
     <div
-      className="inline-flex rounded-lg border border-border bg-paper-deep p-0.5"
+      className="flex w-full sm:w-auto rounded-lg border border-border bg-paper-deep p-0.5"
       role="radiogroup"
       aria-label={t("results.policyBrief")}
     >
@@ -50,12 +50,12 @@ function ViewOption({
       role="radio"
       aria-checked={active}
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-md text-left transition ${
+      className={`flex-1 sm:flex-none min-h-[44px] px-3 py-1.5 rounded-md text-left transition ${
         active ? "bg-card shadow-sm text-ink" : "text-ink-muted hover:text-ink-soft"
       }`}
     >
       <span className="block text-xs font-medium">{label}</span>
-      <span className="block text-[10px] opacity-70">{hint}</span>
+      <span className="hidden sm:block text-[10px] opacity-70">{hint}</span>
     </button>
   );
 }

@@ -66,20 +66,20 @@ export default function IndicatorsDrawer({ scenario, selected, onChange }: Props
       open={open}
       onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
     >
-      <summary className="px-7 py-4 cursor-pointer hover:bg-paper-deep/40 flex items-center justify-between transition list-none">
-        <div className="flex items-center gap-4">
+      <summary className="px-4 md:px-7 py-4 cursor-pointer hover:bg-paper-deep/40 flex items-center justify-between transition list-none min-h-[44px]">
+        <div className="flex items-center gap-3 md:gap-4 min-w-0">
           <span
-            className={`text-ink-muted text-sm transition ${open ? "rotate-180" : ""}`}
+            className={`text-ink-muted text-sm transition shrink-0 ${open ? "rotate-180" : ""}`}
           >
             ▾
           </span>
-          <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-[10px] tracking-[0.18em] text-ink-muted uppercase font-medium">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+              <span className="text-[10px] tracking-[0.18em] text-ink-muted uppercase font-medium hidden sm:inline">
                 {t("indicatorDrawer.customize")}
               </span>
-              <span className="font-display text-lg">{t("indicatorDrawer.title")}</span>
-              <span className="num text-[11px] px-2 py-0.5 bg-ink text-paper rounded-md">
+              <span className="font-display text-base md:text-lg">{t("indicatorDrawer.title")}</span>
+              <span className="num text-[11px] px-2 py-0.5 bg-ink text-paper rounded-md shrink-0">
                 {t("indicatorDrawer.selectedCount", {
                   count: selectedCount,
                   total: INDICATOR_CATALOG.length,

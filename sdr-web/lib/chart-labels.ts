@@ -116,3 +116,48 @@ export const chartLegendProps = {
   iconType: "line" as const,
   wrapperStyle: { fontSize: 11, lineHeight: "18px", top: 0, right: 0 },
 };
+
+/** Compact margins for narrow viewports */
+export const chartMarginsCompact = { top: 8, right: 8, left: 4, bottom: 32 };
+
+export const chartMarginsWithLegendCompact = { top: 32, right: 8, left: 4, bottom: 36 };
+
+export const chartLegendPropsCompact = {
+  verticalAlign: "bottom" as const,
+  align: "center" as const,
+  iconType: "line" as const,
+  wrapperStyle: { fontSize: 9, lineHeight: "14px", paddingTop: 8 },
+};
+
+export const axisTickCompact = { fontSize: 9 };
+
+export interface ChartLayout {
+  margins: typeof chartMargins;
+  marginsWithLegend: typeof chartMarginsWithLegend;
+  legend: typeof chartLegendProps | typeof chartLegendPropsCompact;
+  tick: { fontSize: number };
+  heightScale: number;
+}
+
+export function getChartLayout(compact: boolean): ChartLayout {
+  if (compact) {
+    return {
+      margins: chartMarginsCompact,
+      marginsWithLegend: chartMarginsWithLegendCompact,
+      legend: chartLegendPropsCompact,
+      tick: axisTickCompact,
+      heightScale: 0.75,
+    };
+  }
+  return {
+    margins: chartMargins,
+    marginsWithLegend: chartMarginsWithLegend,
+    legend: chartLegendProps,
+    tick: { fontSize: 10 },
+    heightScale: 1,
+  };
+}
+
+export function chartHeight(base: number, compact: boolean): number {
+  return Math.round(base * getChartLayout(compact).heightScale);
+}

@@ -41,7 +41,7 @@ export default function StartPage() {
       <section className="grid lg:grid-cols-[1fr_0.85fr] lg:gap-6 lg:flex-1 lg:min-h-0 lg:items-stretch gap-8 mb-8 lg:mb-3">
         <div className="flex flex-col justify-center min-h-0 lg:py-1">
           <p className="text-[10px] uppercase tracking-[0.2em] text-accent mb-2">{countyLabel}</p>
-          <h1 className="font-display text-3xl xl:text-[2.35rem] font-medium leading-[1.1] mb-3 max-w-xl">
+          <h1 className="font-display text-2xl sm:text-3xl xl:text-[2.35rem] font-medium leading-[1.1] mb-3 max-w-xl">
             {t("start.hero")}
           </h1>
           <p className="text-ink-soft text-sm xl:text-base leading-relaxed max-w-lg mb-4 line-clamp-3 lg:line-clamp-2">
@@ -57,7 +57,7 @@ export default function StartPage() {
             <div className="flex flex-wrap items-center gap-2.5">
               <Link
                 href={`/design?${scenarioToSearchParams(featuredPreset.scenario).toString()}`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink text-paper rounded-lg text-sm font-medium hover:opacity-90 transition shadow-sm"
+                className="inline-flex items-center gap-2 min-h-[44px] px-5 py-2.5 bg-ink text-paper rounded-lg text-sm font-medium hover:opacity-90 transition shadow-sm"
               >
                 {t("start.featuredCta")}
                 <span aria-hidden>→</span>
@@ -94,7 +94,7 @@ export default function StartPage() {
                 <Link
                   key={preset.id}
                   href={`/design?${scenarioToSearchParams(preset.scenario).toString()}`}
-                  className="preset-card group block bg-card border border-border rounded-xl p-4 lg:p-3.5 xl:p-4"
+                  className="preset-card group block bg-card border border-border rounded-xl p-4 lg:p-3.5 xl:p-4 min-h-[120px] sm:min-h-[100px]"
                 >
                   <div className="flex items-start justify-between gap-2 mb-0.5">
                     <h3 className="font-display text-sm xl:text-base leading-snug line-clamp-2">

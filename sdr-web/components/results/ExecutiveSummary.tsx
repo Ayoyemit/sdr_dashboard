@@ -56,7 +56,7 @@ export default function ExecutiveSummary({ summary, result }: Props) {
           ))}
         </ul>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <SummaryStat
             label={t("exec.deathsAverted")}
             value={result.summary.maternal_deaths_averted.toLocaleString(undefined, {

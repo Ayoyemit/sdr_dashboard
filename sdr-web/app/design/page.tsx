@@ -3,7 +3,11 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import PillSelector from "@/components/PillSelector";
-import ScenarioSummarySidebar from "@/components/design/ScenarioSummarySidebar";
+import ScenarioSummarySidebar, {
+  ScenarioRunActions,
+  ScenarioSummaryCompact,
+} from "@/components/design/ScenarioSummarySidebar";
+import StickyActionBar from "@/components/responsive/StickyActionBar";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { runScenario, waitForRun } from "@/lib/api";
 import { DEFAULT_SCENARIO, HSSIntensity, Scenario } from "@/lib/scenarios";
@@ -63,17 +67,19 @@ function DesignContent() {
   const totalYears = scenario.run.implementation_years + scenario.run.maintenance_years;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-      <div className="grid lg:grid-cols-3 gap-8">
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8 pb-24 lg:pb-8">
+      <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div>
-            <h1 className="font-display text-3xl mb-2">{t("design.title")}</h1>
+            <h1 className="font-display text-2xl sm:text-3xl mb-2">{t("design.title")}</h1>
             <p className="text-ink-muted text-sm">{t("design.subtitle")}</p>
           </div>
 
+          <ScenarioSummaryCompact scenario={scenario} onNameChange={(name) => update({ name })} />
+
           {/* Pillar 1: HSS */}
-          <section className="bg-card border border-border rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
+          <section className="bg-card border border-border rounded-xl p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h2 className="font-display text-lg">{t("design.pillar1")}</h2>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -177,9 +183,9 @@ function DesignContent() {
               + {t("design.addTreatments")}
             </button>
           ) : (
-            <section className="bg-card border border-border rounded-xl p-6">
+            <section className="bg-card border border-border rounded-xl p-4 md:p-6">
               <h2 className="font-display text-lg mb-4">{t("design.pillar2")}</h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {(
                   [
                     ["pph_bundle", "PPH bundle"],
@@ -220,7 +226,7 @@ function DesignContent() {
               + {t("design.addCommunity")}
             </button>
           ) : (
-            <section className="bg-card border border-border rounded-xl p-6">
+            <section className="bg-card border border-border rounded-xl p-4 md:p-6">
               <h2 className="font-display text-lg mb-4">{t("design.pillar3")}</h2>
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-sm">
@@ -301,7 +307,7 @@ function DesignContent() {
           )}
 
           {/* Run settings */}
-          <section className="bg-card border border-border rounded-xl p-6">
+          <section className="bg-card border border-border rounded-xl p-4 md:p-6">
             <h2 className="font-display text-lg mb-4">{t("design.runSettings")}</h2>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
@@ -350,6 +356,15 @@ function DesignContent() {
           onRun={handleRun}
         />
       </div>
+
+      <StickyActionBar>
+        <ScenarioRunActions
+          scenario={scenario}
+          running={running}
+          error={error}
+          onRun={handleRun}
+        />
+      </StickyActionBar>
     </div>
   );
 }

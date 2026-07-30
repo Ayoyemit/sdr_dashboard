@@ -15,7 +15,7 @@ export const sw: TranslationTree = {
     shareHint: "Nakili URL kutoka kivinjari chako kushiriki mpangilio wa hali yako.",
     close: "Funga",
     workflow: "Hatua za kazi",
-    mobileHint: "Inafaa zaidi kwenye kompyuta (1280px+)",
+    goTo: "Nenda kwenye",
   },
   lang: {
     en: "English",

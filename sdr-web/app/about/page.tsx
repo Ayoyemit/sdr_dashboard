@@ -23,9 +23,9 @@ export default function AboutPage() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
       <div className="grid lg:grid-cols-4 gap-8">
-        <nav className="lg:sticky lg:top-24 h-fit">
+        <nav className="hidden lg:block lg:sticky lg:top-24 h-fit">
           <h2 className="text-[11px] uppercase tracking-widest text-ink-muted mb-3">On this page</h2>
           <ul className="space-y-2 text-sm">
             {sections.map((s) => (
@@ -38,11 +38,27 @@ export default function AboutPage() {
           </ul>
         </nav>
         <div className="lg:col-span-3">
-          <h1 className="font-display text-4xl mb-8">About the Model</h1>
+          <h1 className="font-display text-3xl sm:text-4xl mb-4 sm:mb-6">About the Model</h1>
+
+          <nav
+            className="lg:hidden flex gap-2 overflow-x-auto scrollbar-none pb-4 mb-6 -mx-1 px-1"
+            aria-label="On this page"
+          >
+            {sections.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className="shrink-0 min-h-[44px] inline-flex items-center px-4 py-2 text-sm rounded-full border border-border bg-card hover:bg-paper-deep transition"
+              >
+                {s.title}
+              </a>
+            ))}
+          </nav>
+
           {sections.map((s) => (
-            <section key={s.id} id={s.id} className="mb-10">
-              <h2 className="font-display text-2xl mb-3">{s.title}</h2>
-              <p className="text-ink-soft leading-relaxed">{s.body}</p>
+            <section key={s.id} id={s.id} className="mb-10 scroll-mt-24">
+              <h2 className="font-display text-xl sm:text-2xl mb-3">{s.title}</h2>
+              <p className="text-ink-soft leading-relaxed text-sm sm:text-base">{s.body}</p>
             </section>
           ))}
         </div>

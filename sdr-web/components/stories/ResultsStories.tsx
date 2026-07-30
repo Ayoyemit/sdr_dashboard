@@ -23,13 +23,12 @@ import StoryIngredients from "@/components/results/StoryIngredients";
 import IndicatorStoryCharts from "@/components/results/IndicatorStoryCharts";
 import { shouldShowKpi, shouldShowStory } from "@/lib/indicators";
 import {
-  chartLegendProps,
-  chartMargins,
-  chartMarginsWithLegend,
   chartTooltipProps,
+  getChartLayout,
   xAxisLabel,
   yAxisLabel,
 } from "@/lib/chart-labels";
+import { useIsMobile } from "@/lib/use-breakpoint";
 import { ScenarioResult } from "@/lib/scenarios";
 
 interface Props {
@@ -39,6 +38,8 @@ interface Props {
 
 export default function ResultsStories({ result, selectedIndicators }: Props) {
   const { t, locale } = useLocale();
+  const isMobile = useIsMobile();
+  const chartLayout = getChartLayout(isMobile);
   const { summary, timeseries, cost_breakdown, deaths_by_cause, resource_adequacy_end_of_run } =
     result;
 
@@ -78,7 +79,7 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
       {showKpi && (
         <section>
           <StoryIngredients story="kpi" selected={selectedIndicators} />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 min-[480px]:grid-cols-2 md:grid-cols-4 gap-4">
           {shouldShowKpi("deaths", selectedIndicators) && (
             <KPITile
               label={t("kpi.deaths")}
@@ -125,7 +126,7 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
       )}
 
       {showStory01 && (
-        <section className="bg-card border border-border rounded-xl p-8">
+        <section className="bg-card border border-border rounded-xl p-4 md:p-8">
           <div className="text-[11px] uppercase tracking-widest text-ink-muted mb-2">
             {t("stories.story01")}
           </div>
@@ -145,7 +146,7 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
           )}
           <div className="grid md:grid-cols-2 gap-8">
             <div>
-              <div className="font-display text-5xl text-accent num mb-2">
+              <div className="font-display text-3xl sm:text-5xl text-accent num mb-2">
                 $
                 {summary.cost_per_daly_averted_usd.toLocaleString(undefined, {
                   maximumFractionDigits: 0,
@@ -164,14 +165,14 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
               showTitle
             >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={cost_breakdown} margin={chartMargins}>
+                <BarChart data={cost_breakdown} margin={chartLayout.margins}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2DAC8" />
                   <XAxis
                     dataKey="category"
-                    tick={{ fontSize: 10 }}
+                    tick={chartLayout.tick}
                     label={xAxisLabel(t("charts.costCategory"))}
                   />
-                  <YAxis tick={{ fontSize: 10 }} label={yAxisLabel(t("charts.costUsd"))} />
+                  <YAxis tick={chartLayout.tick} label={yAxisLabel(t("charts.costUsd"))} />
                   <Tooltip {...chartTooltipProps({ valueKind: "currency" })} />
                   <Bar dataKey="amount_usd" fill="#2E5F5C" />
                 </BarChart>
@@ -185,7 +186,7 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
       )}
 
       {showStory02 && (
-        <section className="bg-card border border-border rounded-xl p-8">
+        <section className="bg-card border border-border rounded-xl p-4 md:p-8">
           <div className="text-[11px] uppercase tracking-widest text-ink-muted mb-2">
             {t("stories.story02")}
           </div>
@@ -198,15 +199,15 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
             height={340}
           >
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mmData} margin={chartMarginsWithLegend}>
+              <LineChart data={mmData} margin={chartLayout.marginsWithLegend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2DAC8" />
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} label={xAxisLabel(t("charts.month"))} />
+                <XAxis dataKey="month" tick={chartLayout.tick} label={xAxisLabel(t("charts.month"))} />
                 <YAxis
-                  tick={{ fontSize: 10 }}
+                  tick={chartLayout.tick}
                   label={yAxisLabel(t("charts.mmr"))}
                 />
                 <Tooltip {...chartTooltipProps({ valueKind: "mmr", labelPrefix: t("charts.month") })} />
-                <Legend {...chartLegendProps} />
+                <Legend {...chartLayout.legend} />
                 {showCi && (
                   <Area
                     type="monotone"
@@ -246,10 +247,10 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
             {deaths_by_cause.slice(0, 4).map((d) => (
               <div
                 key={d.cause}
-                className="flex justify-between text-sm border-b border-border-soft py-2"
+                className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-2 text-sm border-b border-border-soft py-2"
               >
                 <span>{d.cause}</span>
-                <span className="num text-positive">
+                <span className="num text-positive shrink-0">
                   {t("stories.reduction", { pct: d.percent_reduction })}
                 </span>
               </div>
@@ -271,7 +272,7 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
       )}
 
       {showStory03 && (
-        <section className="bg-card border border-border rounded-xl p-8">
+        <section className="bg-card border border-border rounded-xl p-4 md:p-8">
           <div className="text-[11px] uppercase tracking-widest text-ink-muted mb-2">
             {t("stories.story03")}
           </div>
@@ -284,16 +285,16 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
             height={340}
           >
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={deliveryData} margin={chartMarginsWithLegend}>
+              <AreaChart data={deliveryData} margin={chartLayout.marginsWithLegend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2DAC8" />
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} label={xAxisLabel(t("charts.month"))} />
+                <XAxis dataKey="month" tick={chartLayout.tick} label={xAxisLabel(t("charts.month"))} />
                 <YAxis
-                  tick={{ fontSize: 10 }}
+                  tick={chartLayout.tick}
                   unit="%"
                   label={yAxisLabel(t("charts.shareBirths"))}
                 />
                 <Tooltip {...chartTooltipProps({ valueKind: "percent", labelPrefix: t("charts.month") })} />
-                <Legend {...chartLegendProps} />
+                <Legend {...chartLayout.legend} />
                 <Area type="monotone" dataKey="l4" stackId="1" stroke="#2E5F5C" fill="#2E5F5C" name="L4" />
                 <Area type="monotone" dataKey="l5" stackId="1" stroke="#B5471F" fill="#B5471F" name="L5" />
                 <Area type="monotone" dataKey="l23" stackId="1" stroke="#7E7464" fill="#7E7464" name="L2/3" />
@@ -311,7 +312,7 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
       )}
 
       {showStory04 && (
-        <section className="bg-card border border-border rounded-xl p-8">
+        <section className="bg-card border border-border rounded-xl p-4 md:p-8">
           <div className="text-[11px] uppercase tracking-widest text-ink-muted mb-2">
             {t("stories.story04")}
           </div>

@@ -26,10 +26,13 @@ import {
   getLastComparisonData,
   saveLastComparison,
 } from "@/lib/compare-storage";
-import { chartMarginsWithLegend, chartLegendProps, chartTooltipProps, xAxisLabel, yAxisLabel } from "@/lib/chart-labels";
+import { chartMarginsWithLegend, chartTooltipProps, getChartLayout, xAxisLabel, yAxisLabel } from "@/lib/chart-labels";
+import { useIsMobile } from "@/lib/use-breakpoint";
 
 function CompareResultsContent() {
   const { t } = useLocale();
+  const isMobile = useIsMobile();
+  const chartLayout = getChartLayout(isMobile);
   const searchParams = useSearchParams();
   const comparisonId = searchParams.get("comparison_id");
   const exportScopeRef = useRef<HTMLDivElement>(null);
@@ -83,12 +86,12 @@ function CompareResultsContent() {
   }, [comparisonId]);
 
   if (loading) {
-    return <div className="p-8 text-center text-ink-muted">{t("common.loading")}</div>;
+    return <div className="px-4 md:px-8 py-8 text-center text-ink-muted">{t("common.loading")}</div>;
   }
 
   if (!data?.result_a || !data?.result_b) {
     return (
-      <div className="p-8 text-center">
+      <div className="px-4 md:px-8 py-8 text-center">
         <p className="text-negative mb-4">Comparison not found or expired.</p>
         <Link href="/compare" className="text-accent underline">
           {t("common.newComparison")}
@@ -108,9 +111,9 @@ function CompareResultsContent() {
     })) ?? [];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
-        <div>
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-start sm:justify-between gap-4 mb-8">
+        <div className="min-w-0">
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className="text-[11px] tracking-[0.2em] text-accent uppercase">{t("compare.label")}</span>
             {sessionOnly && (
@@ -119,19 +122,19 @@ function CompareResultsContent() {
               </span>
             )}
           </div>
-          <h1 className="font-display text-4xl font-light mb-2">{t("compare.title")}</h1>
+          <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-light mb-2">{t("compare.title")}</h1>
           <p className="text-ink-muted text-sm">
             <span style={{ color: "#2563A8" }}>{scenario_a.name}</span>
             {" vs "}
             <span style={{ color: "#2B7A3E" }}>{scenario_b.name}</span>
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto">
           <ResultsExportBar mode="compare" data={data} scopeRef={exportScopeRef} />
           <BackToLastResultsLink />
           <Link
             href="/compare"
-            className="px-4 py-2 bg-ink text-paper rounded-md text-sm"
+            className="min-h-[44px] inline-flex items-center justify-center px-4 py-2 bg-ink text-paper rounded-md text-sm text-center"
           >
             {t("compare.adjust")}
           </Link>
@@ -160,7 +163,7 @@ function CompareResultsContent() {
         costBUsd={b.summary.cumulative_cost_usd}
       />
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         <KPITile
           label={t("compare.deathsA")}
           value={a.summary.maternal_deaths_averted.toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -183,7 +186,7 @@ function CompareResultsContent() {
       </div>
 
       <div ref={exportScopeRef}>
-        <section className="bg-card border border-border rounded-xl p-8 mb-12">
+        <section className="bg-card border border-border rounded-xl p-4 md:p-8 mb-12">
           <div className="flex flex-wrap items-start justify-between gap-4 mb-2">
             <div>
               <h2 className="font-display text-xl mb-2">{t("compare.overlayTitle")}</h2>
@@ -195,17 +198,18 @@ function CompareResultsContent() {
             title={t("compare.overlayTitle")}
             filename="comparison-mmr-overlay"
             height={380}
+            mobileHeight={240}
           >
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={overlayData} margin={chartMarginsWithLegend}>
+              <LineChart data={overlayData} margin={chartLayout.marginsWithLegend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2DAC8" />
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} label={xAxisLabel(t("charts.month"))} />
+                <XAxis dataKey="month" tick={chartLayout.tick} label={xAxisLabel(t("charts.month"))} />
                 <YAxis
-                  tick={{ fontSize: 10 }}
+                  tick={chartLayout.tick}
                   label={yAxisLabel(t("charts.mmr"))}
                 />
                 <Tooltip {...chartTooltipProps({ valueKind: "mmr", labelPrefix: t("charts.month") })} />
-                <Legend {...chartLegendProps} />
+                <Legend {...chartLayout.legend} />
                 <Line
                   type="monotone"
                   dataKey="baseline"
@@ -237,7 +241,7 @@ function CompareResultsContent() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6 mb-12">
-        <div className="bg-paper-deep border border-border rounded-xl p-6">
+        <div className="bg-paper-deep border border-border rounded-xl p-4 md:p-6">
           <h3 className="font-display text-lg mb-3" style={{ color: "#2563A8" }}>
             {scenario_a.name}
           </h3>
@@ -250,7 +254,7 @@ function CompareResultsContent() {
             ))}
           </ul>
         </div>
-        <div className="bg-paper-deep border border-border rounded-xl p-6">
+        <div className="bg-paper-deep border border-border rounded-xl p-4 md:p-6">
           <h3 className="font-display text-lg mb-3" style={{ color: "#2B7A3E" }}>
             {scenario_b.name}
           </h3>

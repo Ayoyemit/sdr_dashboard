@@ -65,8 +65,8 @@ export default function BudgetLens(props: Props) {
   };
 
   return (
-    <section className="mb-8 bg-card border border-border rounded-xl p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+    <section className="mb-8 bg-card border border-border rounded-xl p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-start sm:justify-between gap-4 mb-4">
         <div>
           <div className="text-[11px] uppercase tracking-[0.2em] text-accent mb-1">
             {t("budget.title")}
@@ -89,7 +89,7 @@ export default function BudgetLens(props: Props) {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4 -mx-1 px-1 overflow-x-auto scrollbar-none">
         {BUDGET_PRESETS.map((preset) => (
           <button
             key={preset.value}
@@ -98,7 +98,7 @@ export default function BudgetLens(props: Props) {
               persistCap(preset.value);
               setCustomUsd(String(preset.value));
             }}
-            className={`px-3 py-1.5 text-xs rounded-md border transition ${
+            className={`min-h-[44px] px-3 py-1.5 text-xs rounded-md border transition shrink-0 ${
               capUsd === preset.value
                 ? "bg-ink text-paper border-ink"
                 : "border-border hover:bg-paper-deep"
@@ -109,8 +109,8 @@ export default function BudgetLens(props: Props) {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-end gap-2 mb-4">
-        <label className="text-xs text-ink-muted">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 mb-4">
+        <label className="text-xs text-ink-muted w-full sm:w-auto">
           {t("budget.customCap")}
           <input
             type="text"
@@ -118,13 +118,13 @@ export default function BudgetLens(props: Props) {
             value={customUsd}
             onChange={(e) => setCustomUsd(e.target.value)}
             placeholder="e.g. 8000000"
-            className="block mt-1 w-40 border border-border rounded-md px-3 py-1.5 text-sm bg-paper-deep"
+            className="block mt-1 w-full sm:w-40 border border-border rounded-md px-3 py-2 text-sm bg-paper-deep min-h-[44px]"
           />
         </label>
         <button
           type="button"
           onClick={applyCustom}
-          className="px-3 py-1.5 text-xs border border-border rounded-md hover:bg-paper-deep"
+          className="min-h-[44px] px-3 py-1.5 text-xs border border-border rounded-md hover:bg-paper-deep w-full sm:w-auto"
         >
           {t("budget.apply")}
         </button>

@@ -19,6 +19,11 @@ export const metadata = {
   description: "Design and compare maternal health scenarios for Kakamega County",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${instrument.variable}`}>

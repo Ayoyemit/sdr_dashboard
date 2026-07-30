@@ -372,14 +372,9 @@ def labor_calculator(n_lb, n_cs, param, flags):
     L23_LBs = n_lb[1]
     L4_LBs = n_lb[2]
     L5_LBs = n_lb[3]
-    def average_lbs(live_births, num_facilities):
-        if num_facilities <= 0:
-            return 0
-        return live_births / num_facilities
-
-    Avg_L23_LBs = average_lbs(L23_LBs, param['num_L2/3'])
-    Avg_L4_LBs = average_lbs(L4_LBs, param['num_L4'])
-    Avg_L5_LBs = average_lbs(L5_LBs, param['num_L5'])
+    Avg_L23_LBs = L23_LBs / param['num_L2/3']
+    Avg_L4_LBs = L4_LBs / param['num_L4']
+    Avg_L5_LBs = L5_LBs / param['num_L5']
 
     # Surgical staff calculation
     surgical_l23 = (param['surgical_needed_below_thres'] * param['num_L2/3'] if Avg_L23_LBs < param['Ave_LBs_thres']
@@ -440,12 +435,10 @@ def compute_scaled_density_index(d_surgical, d_nurses, surgical_weight, scaled_f
     d_surgical_weighted = d_surgical * surgical_weight
 
     # Compute the harmonic mean-based density index with weighted surgical staff
-    valid_density = (d_surgical_weighted > 0) & (d_nurses > 0)
-    quality_adjusted = np.divide(
-        2 * d_surgical_weighted * d_nurses,
-        d_surgical_weighted + d_nurses,
-        out=np.zeros_like(d_surgical_weighted, dtype=float),
-        where=valid_density,
+    quality_adjusted = np.where(
+        (d_surgical_weighted > 0) & (d_nurses > 0),
+        (2 * d_surgical_weighted * d_nurses) / (d_surgical_weighted + d_nurses),
+        0
     )
 
     scaled_index = quality_adjusted * scaled_factor
@@ -584,29 +577,24 @@ def fetal_sensor_calculator(track, param, i, flags, rng):
     fetal_sensor = {}
 
     # Calculate high-risk and low-risk pregancies in each facility level
-    def perday_per_facility(volume, num_facilities):
-        if num_facilities <= 0:
-            return 0
-        return math.ceil(volume / 30 / num_facilities)
-
-    highrisk_perday_perl23 = perday_per_facility(track['HighRisk_Track'][i][1], param['num_L2/3'])
-    highrisk_perday_perl4 = perday_per_facility(track['HighRisk_Track'][i][2], param['num_L4'])
-    highrisk_perday_perl5 = perday_per_facility(track['HighRisk_Track'][i][3], param['num_L5'])
-    lowrisk_perday_perl23 = perday_per_facility(track['LB_Track'][i][1] - track['HighRisk_Track'][i][1], param['num_L2/3'])
-    lowrisk_perday_perl4 = perday_per_facility(track['LB_Track'][i][2] - track['HighRisk_Track'][i][2], param['num_L4'])
-    lowrisk_perday_perl5 = perday_per_facility(track['LB_Track'][i][3] - track['HighRisk_Track'][i][3], param['num_L5'])
+    # (a facility level with 0 facilities in this county has no per-facility rate to compute)
+    highrisk_perday_perl23 = math.ceil(track['HighRisk_Track'][i][1] / 30 / param['num_L2/3']) if param['num_L2/3'] > 0 else 0
+    highrisk_perday_perl4 = math.ceil(track['HighRisk_Track'][i][2] / 30 / param['num_L4']) if param['num_L4'] > 0 else 0
+    highrisk_perday_perl5 = math.ceil(track['HighRisk_Track'][i][3] / 30 / param['num_L5']) if param['num_L5'] > 0 else 0
+    lowrisk_perday_perl23 = math.ceil((track['LB_Track'][i][1] - track['HighRisk_Track'][i][1]) / 30 / param['num_L2/3']) if param['num_L2/3'] > 0 else 0
+    lowrisk_perday_perl4 = math.ceil((track['LB_Track'][i][2] - track['HighRisk_Track'][i][2]) / 30 / param['num_L4']) if param['num_L4'] > 0 else 0
+    lowrisk_perday_perl5 = math.ceil((track['LB_Track'][i][3] - track['HighRisk_Track'][i][3]) / 30 / param['num_L5']) if param['num_L5'] > 0 else 0
+    
 
     # Calculate the number of fetal dopplers needed
     def doppler_usage_time(lowrisks_perday):
-        total_doppler_usage_time = 0
+        total_doppler_usage_time = 0.0
         if lowrisks_perday > 0:
             for K_LB in range(lowrisks_perday):
-                duration_1st_stage = param['1st_stage_time_normal'][0] + param['1st_stage_time_normal'][1] * rng.normal(0, 1, size=1)
-                duration_2nd_stage = param['2nd_stage_time_normal'][0] + param['2nd_stage_time_normal'][1] * rng.normal(0, 1, size=1)
+                duration_1st_stage = param['1st_stage_time_normal'][0] + param['1st_stage_time_normal'][1] * rng.normal()
+                duration_2nd_stage = param['2nd_stage_time_normal'][0] + param['2nd_stage_time_normal'][1] * rng.normal()
                 doppler_usage_time = (duration_1st_stage / param['check_interval_1st_stage'] + duration_2nd_stage / param['check_interval_2nd_stage']) * param['check_time_doppler']
                 total_doppler_usage_time += doppler_usage_time
-        else:
-            total_doppler_usage_time = 0
         return total_doppler_usage_time
 
     total_doppler_usage_time_perl23 = doppler_usage_time(lowrisk_perday_perl23)
@@ -619,16 +607,13 @@ def fetal_sensor_calculator(track, param, i, flags, rng):
 
     # Calculate the number of CTGs needed
     def CTG_usage_time(highrisks_perday):
-        total_CTG_usage_time = 0
-        if highrisks_perday> 0:
+        total_CTG_usage_time = 0.0
+        if highrisks_perday > 0:
             for K_LB in range(highrisks_perday):
-                duration_1st_stage = param['1st_stage_time_abnormal'][0] + param['1st_stage_time_abnormal'][1] * rng.normal(0, 1, size=1)
-                duration_2nd_stage = param['2nd_stage_time_abnormal'][0] + param['2nd_stage_time_abnormal'][1] * rng.normal(0, 1, size=1)
-                #assuming continous monitoring for high-risk pregnancies
+                duration_1st_stage = param['1st_stage_time_abnormal'][0] + param['1st_stage_time_abnormal'][1] * rng.normal()
+                duration_2nd_stage = param['2nd_stage_time_abnormal'][0] + param['2nd_stage_time_abnormal'][1] * rng.normal()
                 CTG_usage_time = duration_1st_stage + duration_2nd_stage
                 total_CTG_usage_time += CTG_usage_time
-        else:
-            total_CTG_usage_time = 0
         return total_CTG_usage_time
 
     total_CTG_usage_time_perl23 = CTG_usage_time(highrisk_perday_perl23)
@@ -810,7 +795,11 @@ def generate_negative_experience_heard(
     """
 
     # Initialize CHV IDs
-    total_CHV_linked_mothers = min(num_mothers, round(n_CHV * mothers_per_CHV))
+    # Clamped to num_mothers: county-wide CHV counts can imply more linked
+    # mothers than are actually in a given month's cohort (e.g. smaller
+    # counties/months), which would otherwise desync the length of
+    # linked_mother_indices (bounded by num_mothers) from CHV_assignments.
+    total_CHV_linked_mothers = min(round(n_CHV * mothers_per_CHV), num_mothers)
     CHV_IDs = np.full(num_mothers, -1, dtype=int)  # -1 means no CHV
 
     # Randomly assign CHV IDs
@@ -818,9 +807,9 @@ def generate_negative_experience_heard(
     linked_mother_indices = perm_mothers[:total_CHV_linked_mothers]
 
     repeats = int(np.ceil(total_CHV_linked_mothers / n_CHV)) if n_CHV > 0 else 0
-    CHV_assignments = np.tile(np.arange(n_CHV), repeats)
-    CHV_assignments = CHV_assignments[:total_CHV_linked_mothers]
+    CHV_assignments = np.tile(np.arange(n_CHV), int(np.ceil(mothers_per_CHV)))
     rng.shuffle(CHV_assignments)
+    CHV_assignments = CHV_assignments[:total_CHV_linked_mothers]
 
     CHV_IDs[linked_mother_indices] = CHV_assignments
 

@@ -10,6 +10,10 @@ from global_func import (P_Prolonged, P_Prolonged_vectorized, P_Sepsis_vectorize
                          intrapartum_prediction, comp_OL_type, comp_severe, emergency_transfer_comps, preterm_complication, SI_reduction)
 
 
+# Fixed order matching the 'pulse_indicator_targets' list in parameters.py / array_constants sheet.
+PULSE_INDICATOR_ORDER = ["p_pph", "p_aph", "p_OL", "p_ruptured_uterus", "p_eclampsia", "p_mat_sepsis"]
+
+
 def select_pulse_target(indicator_values, indicator_targets, indicator_threshold):
     targeted_indicator = None
     max_gap_ratio = 0.0
@@ -79,7 +83,8 @@ def apply_fqa_effect(P, flags, param):
         return P
 
     fqa_knowledge_improve = float(param.get("fqa_knowledge_improve", 0.043))
-    P["knowledge"] = np.clip(P["knowledge"] + fqa_knowledge_improve, 0, 1)
+    fqa_implementation_index = float(param.get("fqa_implementation_index", 0.0))
+    P["knowledge"] = np.clip(P["knowledge"] + fqa_implementation_index * fqa_knowledge_improve, 0, 1)
 
     return P
 
@@ -225,17 +230,8 @@ def initialize_intra_params(individual_outcomes, track, flags, param, i, rng):
 
     # MENTORS intervention (HSS dict + optional top-level copies from sync_param_momish_from_hss)
     if flags.get("flag_MENTOR"):
-        adoption_rate = np.clip(
-            float(param["HSS"].get("mentor_adoption", param.get("mentor_adoption", 0.0))), 0.0, 1.0
-        )
-        attendance_rate = np.clip(
-            float(param["HSS"].get("mentor_attendance", param.get("mentor_attendance", 0.0))), 0.0, 1.0
-        )
-        fidelity_rate = np.clip(
-            float(param["HSS"].get("mentor_fidelity", param.get("mentor_fidelity", 0.0))), 0.0, 1.0
-        )
 
-        mentors_coverage = adoption_rate * attendance_rate * fidelity_rate
+        mentors_coverage = param["mentors_implementation_index"]
         mentors_knowledge_target = float(param.get("mentors_knowledge_target", 1.0))
 
         P["knowledge"][1:4] = np.clip(
@@ -454,7 +450,7 @@ def intrapartum_effect_vectorized(track, flags, param, i, individual_outcomes, r
     # PULSE acts after complications are observed and before downstream transfer/severity logic.
     targeted_indicator = None
     if flags.get("flag_pulse", 0):
-        indicator_targets = param.get("pulse_indicator_targets", {})
+        indicator_targets = dict(zip(PULSE_INDICATOR_ORDER, param.get("pulse_indicator_targets", [])))
         indicator_values = {
             "p_pph": np.mean(i_pph),
             "p_aph": np.mean(i_aph),

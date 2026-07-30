@@ -18,6 +18,10 @@ Notes
 
 from __future__ import annotations
 
+import ast
+import copy
+import functools
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -43,6 +47,18 @@ SAMPLED_ARRAYS = {
     "p_PL_GA": ["p_PL_GA_37", "p_PL_GA_38", "p_PL_GA_39", "p_PL_GA_40", "p_PL_GA_41", "p_PL_GA_42"],
     "p_OL": ["p_OL_notprolonged", "p_OL_prolonged"],
 }
+
+# ---------------------------------------------------------------------------
+# Module-level workbook path and county default.
+# Override WORKBOOK_PATH at runtime by setting the SDR_PARAMS_PATH env var,
+# e.g. for server deployment:  export SDR_PARAMS_PATH=/app/SDR_Parameters.xlsx
+# ---------------------------------------------------------------------------
+WORKBOOK_PATH: Path = Path(os.environ.get(
+    "SDR_PARAMS_PATH",
+    "/Users/poppy/Library/CloudStorage/OneDrive-SharedLibraries-JohnsHopkins/"
+    "Meibin Chen - MOMISH interventions/SDR Parameters.xlsx",
+))
+DEFAULT_COUNTY: str = "kakamega"
 
 # Disability-weight labels expected by existing DALY code.
 DW_NAME_MAP = {
@@ -74,6 +90,17 @@ class ParameterWorkbook:
         return self.sheets[name].copy()
 
 
+@functools.lru_cache(maxsize=None)
+def _load_workbook_cached(resolved_path: str) -> ParameterWorkbook:
+    """Load the Excel workbook from disk exactly once per resolved path per process.
+
+    The return value is an immutable ParameterWorkbook whose .sheet() method
+    always returns a fresh copy of the underlying DataFrame, so downstream
+    sampling code cannot mutate the cached data.
+    """
+    return ParameterWorkbook.load(resolved_path)
+
+
 def _clean_county(county: str) -> str:
     return str(county).strip().lower()
 
@@ -82,16 +109,32 @@ def _is_missing(value: Any) -> bool:
     return value is None or (isinstance(value, float) and np.isnan(value)) or pd.isna(value)
 
 
-def _sample_or_value(row: Mapping[str, Any], rng: np.random.Generator) -> float:
+def _parse_array_string(value: Any) -> np.ndarray | None:
+    """Parse a single cell like '[0.29, 0.47, 0.24]' into a float array, or None if not array-shaped."""
+    if isinstance(value, str) and value.strip().startswith("[") and value.strip().endswith("]"):
+        return np.array(ast.literal_eval(value.strip()), dtype=float)
+    return None
+
+
+def _sample_or_value(row: Mapping[str, Any], rng: np.random.Generator) -> float | np.ndarray | None:
+    """Return a numeric value, array, or None for placeholder strings like 'TBD'."""
     value = row.get("value")
     kind = row.get("kind")
     ci_lower = row.get("ci_lower")
     ci_upper = row.get("ci_upper")
     n = row.get("n")
 
+    # A whole array pasted into one cell, e.g. '[0.29, 0.47, 0.24]' -- always deterministic.
+    array_value = _parse_array_string(value)
+    if array_value is not None:
+        return array_value
+
     # Treat blank/fixed kinds or rows without CIs as deterministic.
     if _is_missing(kind) or str(kind).lower() == "fixed" or _is_missing(ci_lower) or _is_missing(ci_upper):
-        return float(value)
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None  # placeholder text like 'TBD' or 'L3 calc TBD' — skip silently
 
     n_arg = None if _is_missing(n) else int(n)
     return float(sample_from_ci(float(value), float(ci_lower), float(ci_upper), n=n_arg, kind=str(kind), size=1, rng=rng)[0])
@@ -133,9 +176,32 @@ def _sampled_params(wb: ParameterWorkbook, rng: np.random.Generator) -> dict[str
     return params
 
 
-def _intervention_params(wb: ParameterWorkbook, rng: np.random.Generator) -> dict[str, Any]:
+def _intervention_params(wb: ParameterWorkbook, rng: np.random.Generator, county: str) -> dict[str, Any]:
+    """Load intervention-level parameters, preferring the row for this county.
+
+    Some parameters (e.g. mentors_implementation_index) have one row per county
+    instead of a single universal row. Grouping by parameter_name and always
+    keeping the last row silently picked whichever county happened to be listed
+    last in the sheet, regardless of the county actually requested. Now: use the
+    row for `county` when one exists, otherwise fall back to the last row for
+    that parameter_name (covers universal "All" rows and counties without their
+    own row).
+    """
     rows = wb.sheet("interv_params")
-    return {row["parameter_name"]: _sample_or_value(row, rng) for _, row in rows.iterrows() if not _is_missing(row.get("value"))}
+    rows = rows.dropna(subset=["parameter_name", "value"])
+    county_clean = _clean_county(county)
+
+    params: dict[str, Any] = {}
+    for name, group in rows.groupby("parameter_name", sort=False):
+        row = None
+        if "county" in group.columns:
+            county_match = group[group["county"].astype(str).str.strip().str.lower() == county_clean]
+            if not county_match.empty:
+                row = county_match.iloc[0]
+        if row is None:
+            row = group.iloc[-1]
+        params[str(name)] = _sample_or_value(row, rng)
+    return params
 
 
 def _constants(wb: ParameterWorkbook) -> dict[str, Any]:
@@ -201,24 +267,17 @@ def _county_supply(wb: ParameterWorkbook, county: str, rng: np.random.Generator)
     for name, g in rows.dropna(subset=["parameter_name", "value"]).groupby("parameter_name", sort=False):
         name = str(name)
 
-        if name == "base_LB":
-            continue
-
-        if name == "base_LB":
-            continue
-
-        if name == "base_LB":
-            continue
-
         if (
             name in collapse_l3_params
             and "facility_level" in g.columns
             and g["facility_level"].notna().any()
         ):
-            lookup = {
-                str(row["facility_level"]).strip(): _sample_or_value(row, rng)
-                for _, row in g.iterrows()
-            }
+            # Skip rows whose value is a placeholder string (e.g. 'TBD').
+            lookup = {}
+            for _, row in g.iterrows():
+                v = _sample_or_value(row, rng)
+                if v is not None:
+                    lookup[str(row["facility_level"]).strip()] = v
 
             out[name] = np.array(
                 [lookup.get(level, 0.0) for level in model_facility_order],
@@ -227,7 +286,9 @@ def _county_supply(wb: ParameterWorkbook, county: str, rng: np.random.Generator)
 
         else:
             g = g.sort_values("index") if "index" in g.columns else g
-            values = [_sample_or_value(row, rng) for _, row in g.iterrows()]
+            values = [v for v in (_sample_or_value(row, rng) for _, row in g.iterrows()) if v is not None]
+            if not values:
+                continue
             out[name] = np.array(values, dtype=float) if len(values) > 1 else float(values[0])
 
     return out
@@ -310,30 +371,56 @@ def _disability_weights(wb: ParameterWorkbook, rng: np.random.Generator) -> dict
     return out
 
 
-def get_parameters(
-    workbook_path: str | Path,
-    county: str = "kakamega",
-    rng: np.random.Generator | None = None,
-    seed: int | None = None,
+# Count-like parameters (facility/equipment/volunteer counts) are used downstream as
+# np.zeros/np.arange/np.tile sizes and loop counts, which require Python ints. Excel
+# loads whole numbers as floats (e.g. 5040.0), so cast them explicitly after loading.
+_COUNT_PARAM_KEYS = (
+    "n_CHV",
+    "num_L2/3",
+    "num_L4",
+    "num_L5",
+    "num_dopplers_L2/3",
+    "num_dopplers_L4",
+    "num_dopplers_L5",
+    "num_CTGs_L2/3",
+    "num_CTGs_L4",
+    "num_CTGs_L5",
+)
+
+
+def _cast_count_params(param: dict[str, Any]) -> dict[str, Any]:
+    """Cast known count-like parameters (and any other scalar 'num_*' param) to int in place."""
+    for key, value in param.items():
+        if key in _COUNT_PARAM_KEYS or key.startswith("num_"):
+            if isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, bool):
+                param[key] = int(round(value))
+    return param
+
+
+@functools.lru_cache(maxsize=1)
+def _default_county_fallback_params(resolved_path: str) -> dict[str, Any]:
+    """Kakamega's parameter dict, used to fill in values missing for other counties.
+
+    Cached (deterministic seed) since this is only a fallback source, not the primary
+    sampling path — callers must deepcopy values out of it before use, since dict/array
+    values here are shared across every county that falls back to them.
+    """
+    wb = _load_workbook_cached(resolved_path)
+    return _build_params(wb, DEFAULT_COUNTY, rng=np.random.default_rng(0), strict_county=False)
+
+
+def _build_params(
+    wb: ParameterWorkbook,
+    county: str,
+    rng: np.random.Generator,
     strict_county: bool = False,
 ) -> dict[str, Any]:
-    """Build the parameter dictionary for one county.
+    """Build a fresh sampled parameter dict from an already-loaded workbook.
 
-    Parameters
-    ----------
-    workbook_path:
-        Path to `SDR Parameters.xlsx`.
-    county:
-        County name in the workbook, e.g. "kakamega", "kisii", "makueni", "mombasa".
-    rng, seed:
-        Use either a numpy Generator or a seed for reproducible uncertainty draws.
-    strict_county:
-        If True, raise an error when the county has no row in the `counties` sheet.
+    This is the hot path called inside Monte Carlo loops.  It performs no disk
+    I/O — all DataFrame access goes through wb.sheet() which returns a .copy(),
+    so the cached workbook is never mutated in-place.
     """
-    if rng is None:
-        rng = np.random.default_rng(seed)
-
-    wb = ParameterWorkbook.load(workbook_path)
     county_clean = _clean_county(county)
 
     counties = wb.sheet("counties")
@@ -346,9 +433,18 @@ def get_parameters(
     param.update(_constants(wb))
     param.update(_array_constants(wb))
     param.update(_sampled_params(wb, rng))
-    param.update(_intervention_params(wb, rng))
+    param.update(_intervention_params(wb, rng, county))
     param["cost_dict"] = _cost_dict(wb)
     param["DW"] = _disability_weights(wb, rng)
+
+    if "fqa_pulse_modifier" in param:
+        medium = param["fqa_pulse_modifier"]
+        param.setdefault("fqa_pulse_modifier_level", "Medium")
+        param["fqa_pulse_modifier_options"] = {
+            "Low": medium * 0.5,
+            "Medium": medium,
+            "High": medium * 1.5,
+        }
 
     # County-specific overrides.
     param.update(_county_demographics(wb, county, rng))
@@ -357,7 +453,41 @@ def get_parameters(
     param.update(_county_calibrated(wb, county))
     param.update(_calibration_targets(wb, county))
 
-    # Derived convenience values used in your current code.
+    # Fall back to Kakamega's value for any parameter this county's sheets don't yet
+    # provide (e.g. supply data not yet collected for a county), per this module's
+    # documented behavior. Values are deep-copied since callers mutate arrays in place.
+    if county_clean != DEFAULT_COUNTY:
+        fallback = _default_county_fallback_params(str(WORKBOOK_PATH.resolve()))
+        for key, value in fallback.items():
+            if key not in param:
+                param[key] = copy.deepcopy(value)
+
+    # Legacy baseline values that are still required by unconditional model
+    # pathways. Workbook/county values take precedence whenever present.
+    required_defaults = {
+        "n_CHV": 420 * 12,
+        "PT_scale": 0.8250540888309176,
+        # Kakamega Phase 2 reference values. County multipliers scale all PPH
+        # and sepsis pathways relative to this calibrated reference structure.
+        "pph_incidence_multiplier": 1.0,
+        "sepsis_incidence_multiplier": 1.0,
+        "p_pph_other_reference": 0.0100,
+        "p_mat_sepsis_other_reference": 0.0356,
+        "S_pph_bundle": np.zeros(4, dtype=float),
+        "p_NM_home": 0.235,
+        "weight_facility_neo": 3.15,
+        "p_elec_CS|highrisk_us": 0.35,
+        "p_elec_CS|preterm_us": 0.7799,
+        "p_cs_capacity_sdr": np.array([0, 0, 0.1215, 0.1215], dtype=float),
+        "p_cs_capacity_sensor": np.array([0, 0.0568, 0.1215, 0.1215], dtype=float),
+        "p_cs_capacity_sdr_sensor": np.array([0, 0, 0.1215, 0.1215], dtype=float),
+        "transfer_delay_shift_2plus": 0.60,
+        "transfer_delay_shift_1_2": 0.40,
+    }
+    for key, default in required_defaults.items():
+        param.setdefault(key, default)
+
+    # Derived convenience values.
     if "base_LB" in param:
         base_lb = np.asarray(param["base_LB"], dtype=float)
         if base_lb.size == 4 and base_lb.sum() > 0:
@@ -365,14 +495,80 @@ def get_parameters(
             param["p_l5_l45"] = float(base_lb[3] / (base_lb[2] + base_lb[3])) if (base_lb[2] + base_lb[3]) > 0 else np.nan
             param["Num_Exp_L45"] = float(base_lb[2] + base_lb[3])
 
+    _cast_count_params(param)
+
     param["county"] = county_clean
     return param
 
 
-def get_slider_params(workbook_path: str | Path, county: str = "kakamega") -> dict[str, Any]:
-    """Load dashboard slider defaults for one county."""
-    wb = ParameterWorkbook.load(workbook_path)
+def get_parameters(
+    rng: np.random.Generator | None = None,
+    county: str | None = None,
+    *,
+    seed: int | None = None,
+    strict_county: bool = False,
+) -> dict[str, Any]:
+    """Build a freshly sampled parameter dictionary.
+
+    Parameters
+    ----------
+    rng:
+        A numpy Generator for reproducible uncertainty draws.  A new
+        non-deterministic generator is created when None.
+    county:
+        County name, e.g. "kakamega", "kisii", "makueni", "mombasa".
+        Defaults to DEFAULT_COUNTY ("kakamega").
+    seed:
+        Integer seed used only when rng is None.
+    strict_county:
+        If True, raise an error when the county is not in the workbook.
+
+    Notes
+    -----
+    The workbook is loaded from WORKBOOK_PATH (or the SDR_PARAMS_PATH env var)
+    exactly once per process and cached.  Repeated calls with different rng
+    values produce independently sampled dictionaries without re-reading Excel.
+    """
+    if county is None:
+        county = DEFAULT_COUNTY
+    if rng is None:
+        rng = np.random.default_rng(seed)
+    wb = _load_workbook_cached(str(WORKBOOK_PATH.resolve()))
+    return _build_params(wb, county, rng, strict_county)
+
+
+def get_fqa_pulse_modifier_options() -> dict[str, float]:
+    """Static Low/Medium/High multipliers for the FQA-PULSE interaction.
+
+    Sourced directly from the workbook's base 'fqa_pulse_modifier' value (deterministic,
+    no CI/sampling for this parameter), so it can be read once at import time without
+    running a full get_parameters() sampling pass.
+    """
+    wb = _load_workbook_cached(str(WORKBOOK_PATH.resolve()))
+    rows = wb.sheet("interv_params")
+    medium = float(rows.loc[rows["parameter_name"] == "fqa_pulse_modifier", "value"].iloc[0])
+    return {"Low": medium * 0.5, "Medium": medium, "High": medium * 1.5}
+
+
+def get_available_counties() -> list[str]:
+    """List county names available in the workbook (uses the cached workbook, no re-read)."""
+    wb = _load_workbook_cached(str(WORKBOOK_PATH.resolve()))
+    counties = wb.sheet("counties")
+    if "enabled" in counties.columns:
+        counties = counties[counties["enabled"].astype(bool)]
+    return sorted(counties["county"].astype(str).str.strip().str.lower().unique().tolist())
+
+
+def get_slider_params(county: str | None = None) -> dict[str, Any]:
+    """Load dashboard slider defaults for one county.
+
+    Uses the cached workbook (no re-read from disk).  County defaults to
+    DEFAULT_COUNTY when not specified.
+    """
+    if county is None:
+        county = DEFAULT_COUNTY
     county_clean = _clean_county(county)
+    wb = _load_workbook_cached(str(WORKBOOK_PATH.resolve()))
 
     out: dict[str, Any] = {}
 
@@ -392,8 +588,11 @@ def get_slider_params(workbook_path: str | Path, county: str = "kakamega") -> di
         if _is_missing(name) or _is_missing(value):
             continue
         if typ == "array":
-            # Allows comma-separated values in Excel, if you choose to store arrays that way.
-            if isinstance(value, str):
+            # Bracket-string format "[0, 0, 0.77, 0.77]" or plain comma-separated.
+            arr = _parse_array_string(value)
+            if arr is not None:
+                out[str(name)] = arr
+            elif isinstance(value, str):
                 out[str(name)] = np.array([float(x.strip()) for x in value.split(",") if x.strip()], dtype=float)
             else:
                 out[str(name)] = np.array([float(value)], dtype=float)
@@ -401,7 +600,8 @@ def get_slider_params(workbook_path: str | Path, county: str = "kakamega") -> di
             out[str(name)] = float(value)
 
     # Sensible fallbacks from the main county parameter table.
-    params = get_parameters(workbook_path, county=county)
+    # Use a fixed seed so slider defaults are deterministic regardless of call order.
+    params = _build_params(wb, county, rng=np.random.default_rng(0))
     out.setdefault("base_knowledge_L45_slider", params.get("base_knowledge_L45"))
     out.setdefault("base_p_45_slider", params.get("base_p_45"))
     out.setdefault("p_ANC_base_slider", params.get("p_ANC_base"))
@@ -438,6 +638,25 @@ def calculate_derived_parameters(param: dict[str, Any]) -> dict[str, Any]:
 
     param["eclampsia_highrisk_anemia"] = comp2_comp1_anemia(param["eclampsia_highrisk"], param["or_anemia_eclampsia"])
     param["eclampsia_lowrisk_anemia"] = comp2_comp1_anemia(param["eclampsia_lowrisk"], param["or_anemia_eclampsia"])
+
+    # Scale PPH/sepsis incidence pathways by the county-specific multiplier,
+    # relative to the Kakamega Phase 2 calibrated reference structure.
+    pph_multiplier = float(param.get("pph_incidence_multiplier", 1.0))
+    sepsis_multiplier = float(param.get("sepsis_incidence_multiplier", 1.0))
+
+    def scaled_probability(probability, multiplier):
+        return float(np.clip(float(probability) * multiplier, 0.0, 1.0))
+
+    param["p_pph_OL"] = scaled_probability(param["p_pph_OL"], pph_multiplier)
+    param["p_pph_elective_CS"] = scaled_probability(param["p_pph_elective_CS"], pph_multiplier)
+    param["p_pph_emergency_CS"] = scaled_probability(param["p_pph_emergency_CS"], pph_multiplier)
+    param["p_pph_other"] = scaled_probability(param["p_pph_other_reference"], pph_multiplier)
+
+    param["p_mat_sepsis_OL"] = scaled_probability(param["p_mat_sepsis_OL"], sepsis_multiplier)
+    param["p_mat_sepsis_elective_CS"] = scaled_probability(param["p_mat_sepsis_elective_CS"], sepsis_multiplier)
+    param["p_mat_sepsis_emergency_CS"] = scaled_probability(param["p_mat_sepsis_emergency_CS"], sepsis_multiplier)
+    param["p_mat_sepsis_other"] = scaled_probability(param["p_mat_sepsis_other_reference"], sepsis_multiplier)
+
     param["pph_OL_anemia"] = comp2_comp1_anemia(param["p_pph_OL"], param["or_anemia_pph"])
     param["mat_sepsis_OL_anemia"] = comp2_comp1_anemia(param["p_mat_sepsis_OL"], param["or_anemia_sepsis"])
     param["pph_elective_CS_anemia"] = comp2_comp1_anemia(param["p_pph_elective_CS"], param["or_anemia_pph"])

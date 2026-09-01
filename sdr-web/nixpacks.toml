@@ -1,0 +1,3 @@
+# Node 20 for Next.js 14. Railway runs from the sdr-web/ root directory.
+[phases.setup]
+nixPkgs = ["nodejs_20"]

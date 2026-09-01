@@ -49,13 +49,27 @@ Copy the **public URL** (e.g. `https://sdr-api-production-xxxx.up.railway.app`).
 
 ---
 
+## Docker vs Nixpacks
+
+| Service | Builder | Why |
+|---------|---------|-----|
+| **sdr-api** | **Dockerfile** (required) | Must copy `sim/` + `sdr-api/` from monorepo root into one image |
+| **sdr-web** | **Nixpacks** (default) | Standard Next.js app in one folder — Railway auto-builds it |
+
+`sdr-web/Dockerfile` is kept for **local** `docker compose` only. You do not need Docker on Railway for the web service.
+
+---
+
 ## 3. Service: sdr-web
 
 | Setting | Value |
 |---------|--------|
-| **Root Directory** | `sdr-web` |
+| **Root Directory** | `sdr-web` ← **critical** — if this is empty, the build will fail |
 | **Config file** | `sdr-web/railway.toml` |
-| **Builder** | Dockerfile (`Dockerfile` relative to `sdr-web/`) |
+| **Builder** | Nixpacks (auto-detects Next.js) |
+
+> **Do not** point this service at the repo root. The root `railway.toml` is for **sdr-api only**.
+> If Root Directory is wrong, you may see: `The working directory "/app" does not exist`.
 
 **Environment variables** (required at **build** time):
 
@@ -110,7 +124,7 @@ npx @railway/cli logs
 | Symptom | Fix |
 |---------|-----|
 | `/health` returns plain `OK` | Wrong service or placeholder — not your FastAPI app |
-| Web: `working directory "/app" does not exist` | Set **Root Directory** to `sdr-web` and use Dockerfile builder (not Nixpacks with wrong root) |
+| Web: `working directory "/app" does not exist` | **Root Directory** must be `sdr-web` (not repo root). Clear any custom “Working Directory” override in Railway settings. |
 | API build fails: `COPY sim/` | **Root Directory** must be repo root, not `sdr-api/` |
 | Web loads but runs fail (CORS) | Set `ALLOWED_ORIGINS` to exact web URL |
 | Web can’t reach API | Set `NEXT_PUBLIC_API_BASE` and **redeploy sdr-web** |

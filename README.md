@@ -54,7 +54,7 @@ docker compose up --build
 | Service | Root directory | Build |
 |---------|----------------|--------|
 | **sdr-api** | *(repo root)* | `sdr-api/Dockerfile` |
-| **sdr-web** | `sdr-web/` | Dockerfile (`sdr-web/Dockerfile`) |
+| **sdr-web** | `sdr-web/` | Nixpacks (Next.js) |
 
 Connect GitHub repo **`Ayoyemit/sdr_dashboard`**, branch **`feature/new-ui`** (or `main` after merge).
 

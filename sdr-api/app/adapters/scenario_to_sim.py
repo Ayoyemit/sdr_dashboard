@@ -5,6 +5,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+import numpy as np
+
 from app.data.hss_presets import CAPACITY_MATCH, DEMAND_SCENARIOS
 from app.schemas.scenario import ScenarioRequest
 
@@ -15,13 +17,25 @@ _reset_E = None
 _reset_HSS = None
 _reset_S = None
 _get_P_l45 = None
+_get_parameters = None
+_calculate_derived_parameters = None
+_get_fqa_pulse_modifier_options = None
+
+FQA_FIDELITY_OVERRIDE = {"Moderate": 0.5, "High": 0.95}
+PULSE_FIDELITY_OVERRIDE = {"Moderate": 0.5, "High": 0.95}
 
 
 def _ensure_sim_imports():
     global _get_slider_params, _reset_flags, _reset_E, _reset_HSS, _reset_S, _get_P_l45
+    global _get_parameters, _calculate_derived_parameters, _get_fqa_pulse_modifier_options
     if _reset_flags is None:
         from global_func import get_P_l45, reset_E, reset_flags, reset_HSS, reset_S
-        from parameter_loader import get_slider_params
+        from parameter_loader import (
+            calculate_derived_parameters,
+            get_fqa_pulse_modifier_options,
+            get_parameters,
+            get_slider_params,
+        )
 
         _get_slider_params = get_slider_params
         _reset_flags = reset_flags
@@ -29,6 +43,39 @@ def _ensure_sim_imports():
         _reset_HSS = reset_HSS
         _reset_S = reset_S
         _get_P_l45 = get_P_l45
+        _get_parameters = get_parameters
+        _calculate_derived_parameters = calculate_derived_parameters
+        _get_fqa_pulse_modifier_options = get_fqa_pulse_modifier_options
+
+
+def _fidelity_key(implementation: str) -> str:
+    return "High" if implementation == "high" else "Moderate"
+
+
+def _modifier_level(influence: str) -> str:
+    return "High" if influence == "high" else "Low"
+
+
+def _get_fqa_implementation_index(fidelity_choice: str, county: str) -> float:
+    if fidelity_choice in FQA_FIDELITY_OVERRIDE:
+        return FQA_FIDELITY_OVERRIDE[fidelity_choice]
+    try:
+        param = _get_parameters(rng=np.random.default_rng(0), county=county)
+        param = _calculate_derived_parameters(param)
+        return float(np.clip(param.get("fqa_implementation_index", 0.0), 0.0, 1.0))
+    except Exception:
+        return 0.0
+
+
+def _get_pulse_implementation_index(fidelity_choice: str, county: str) -> float:
+    if fidelity_choice in PULSE_FIDELITY_OVERRIDE:
+        return PULSE_FIDELITY_OVERRIDE[fidelity_choice]
+    try:
+        param = _get_parameters(rng=np.random.default_rng(0), county=county)
+        param = _calculate_derived_parameters(param)
+        return float(np.clip(param.get("pulse_implementation_index", 0.0), 0.0, 1.0))
+    except Exception:
+        return 0.0
 
 
 def _apply_hss(req: ScenarioRequest, i_flags: dict, i_hss: dict, slider_params: dict) -> list[str]:
@@ -103,6 +150,7 @@ def _apply_treatments(req: ScenarioRequest, i_flags: dict, i_s: dict) -> None:
 def _apply_community(req: ScenarioRequest, i_flags: dict, i_hss: dict) -> list[str]:
     warnings: list[str] = []
     c = req.community
+    county = req.county or "kakamega"
     if not c.enabled:
         return warnings
 
@@ -125,26 +173,35 @@ def _apply_community(req: ScenarioRequest, i_flags: dict, i_hss: dict) -> list[s
         if c.mentors.fidelity is not None:
             i_hss["mentor_fidelity"] = c.mentors.fidelity
 
-    if c.fqa.enabled:
-        warnings.append(
-            f"FQA was configured (implementation: {c.fqa.implementation}, "
-            f"influence_on_pulse: {c.fqa.influence_on_pulse}) but is not yet wired "
-            "into the simulation model. Result reflects PROMPTS / MENTORS / HSS / Treatments only."
-        )
-
     if c.pulse.enabled:
-        warnings.append(
-            f"PULSE was configured (implementation: {c.pulse.implementation}) but is not yet "
-            "wired into the simulation model."
-        )
+        i_flags["flag_pulse"] = 1
+        pulse_key = _fidelity_key(c.pulse.implementation)
+        pulse_index = _get_pulse_implementation_index(pulse_key, county)
+        i_hss["pulse_implementation_index"] = pulse_index
+    else:
+        i_hss["pulse_implementation_index"] = 0.0
+
+    if c.fqa.enabled:
+        i_flags["flag_fqa"] = 1
+        fqa_key = _fidelity_key(c.fqa.implementation)
+        fqa_index = _get_fqa_implementation_index(fqa_key, county)
+        i_hss["fqa_implementation_index"] = fqa_index
+    else:
+        i_hss["fqa_implementation_index"] = 0.0
+
+    if c.fqa.enabled or c.pulse.enabled:
+        modifier_options = _get_fqa_pulse_modifier_options()
+        modifier_level = _modifier_level(c.fqa.influence_on_pulse)
+        i_hss["fqa_pulse_modifier_level"] = modifier_level
+        i_hss["fqa_pulse_modifier"] = modifier_options[modifier_level]
 
     if c.referral_emt.enabled:
         i_flags["flag_emt"] = 1
-        if c.referral_emt.emt_participation is not None:
-            i_hss["emt_participation"] = c.referral_emt.emt_participation
-        warnings.append(
-            "Referral / EMT model wiring is partial. Some effects may not reflect in outcomes."
-        )
+        participation = c.referral_emt.emt_participation if c.referral_emt.emt_participation is not None else 1.0
+        i_hss["emt_participation"] = participation
+        i_hss["emt_intensity"] = participation
+    else:
+        i_hss["emt_intensity"] = 0.0
 
     return warnings
 
@@ -158,12 +215,24 @@ def sync_param_momish_from_hss(i_param: dict, i_hss: dict) -> None:
     for key in ("mentor_adoption", "mentor_attendance", "mentor_fidelity"):
         if key in i_hss:
             i_param[key] = float(i_hss[key])
+    if i_hss.get("fqa_pulse_modifier") is not None:
+        i_param["fqa_pulse_modifier_level"] = i_hss.get("fqa_pulse_modifier_level", "Medium")
+        i_param["fqa_pulse_modifier"] = float(i_hss["fqa_pulse_modifier"])
+    if i_hss.get("pulse_implementation_index") is not None:
+        i_param["pulse_implementation_index"] = float(i_hss["pulse_implementation_index"])
+    if i_hss.get("fqa_implementation_index") is not None:
+        i_param["fqa_implementation_index"] = float(i_hss["fqa_implementation_index"])
+    if i_hss.get("emt_participation") is not None:
+        i_param["emt_participation"] = float(i_hss["emt_participation"])
+    if i_hss.get("emt_intensity") is not None:
+        i_param["emt_intensity"] = float(i_hss["emt_intensity"])
 
 
 def scenario_to_sim_inputs(req: ScenarioRequest) -> tuple[dict, dict, dict, dict, list[str]]:
     """Return (i_flags, i_E, i_S, i_HSS, warnings)."""
     _ensure_sim_imports()
-    slider_params = _get_slider_params()
+    county = req.county or "kakamega"
+    slider_params = _get_slider_params(county=county)
 
     i_flags = _reset_flags()
     i_e = _reset_E()
@@ -215,10 +284,14 @@ def build_applied_interventions(req: ScenarioRequest) -> list[dict[str, Any]]:
             )
         if req.community.fqa.enabled:
             items.append(
-                {"pillar": "community", "name": "FQA", "is_wired_in_model": False}
+                {"pillar": "community", "name": "FQA", "is_wired_in_model": True}
             )
         if req.community.pulse.enabled:
             items.append(
-                {"pillar": "community", "name": "PULSE", "is_wired_in_model": False}
+                {"pillar": "community", "name": "PULSE", "is_wired_in_model": True}
+            )
+        if req.community.referral_emt.enabled:
+            items.append(
+                {"pillar": "community", "name": "Referral / EMT", "is_wired_in_model": True}
             )
     return items

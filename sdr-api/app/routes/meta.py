@@ -5,16 +5,15 @@ from app.data.presets import get_presets_response
 router = APIRouter(prefix="/api/v1", tags=["meta"])
 
 
+def _load_counties_meta() -> list[dict]:
+    from parameter_loader import get_counties_catalog
+
+    return get_counties_catalog()
+
+
 @router.get("/meta/counties")
 def meta_counties():
-    return {
-        "counties": [
-            {"id": "kakamega", "name": "Kakamega", "calibrated": True, "population": 1_872_000},
-            {"id": "kisumu", "name": "Kisumu", "calibrated": False, "available": "Q3 2026"},
-            {"id": "nairobi", "name": "Nairobi", "calibrated": False, "available": "Q4 2026"},
-            {"id": "bungoma", "name": "Bungoma", "calibrated": False, "available": "Q4 2026"},
-        ]
-    }
+    return {"counties": _load_counties_meta()}
 
 
 @router.get("/meta/parameters")

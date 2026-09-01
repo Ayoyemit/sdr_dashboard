@@ -6,6 +6,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import ResultsExportBar from "@/components/export/ResultsExportBar";
 import BackToLastComparisonLink from "@/components/BackToLastComparisonLink";
 import CountyScopeBanner from "@/components/results/CountyScopeBanner";
+import ScenarioAssumptionsBanner from "@/components/results/ScenarioAssumptionsBanner";
 import ExecutiveSummary from "@/components/results/ExecutiveSummary";
 import MethodsLimitations from "@/components/results/MethodsLimitations";
 import BudgetLens from "@/components/results/BudgetLens";
@@ -167,7 +168,9 @@ function ResultsContent() {
         )}
       </div>
 
-      <CountyScopeBanner />
+      <ScenarioAssumptionsBanner scenario={scenario} />
+
+      <CountyScopeBanner countyId={scenario.county} />
 
       {sessionOnly && (
         <div className="mb-6 text-sm bg-warning/10 border border-warning/30 rounded-lg px-4 py-3 text-ink-soft">

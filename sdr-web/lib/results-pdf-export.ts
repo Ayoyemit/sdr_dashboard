@@ -2,7 +2,7 @@ import { jsPDF } from "jspdf";
 import { chartContainerToPngDataUrl, collectChartTargets, sanitizeFilename } from "./chart-export";
 import {
   buildReproducibilityRecord,
-  CALIBRATION_SCOPE,
+  calibrationScopeForCounty,
   formatReproducibilityLines,
   MODEL_VERSION,
 } from "./model-metadata";
@@ -119,7 +119,7 @@ export async function exportScenarioResultsPdf(
   const horizon = scenario.run.implementation_years + scenario.run.maintenance_years;
   y = addWrappedText(
     doc,
-    `${CALIBRATION_SCOPE} · ${horizon}-year horizon · ${MODEL_VERSION}`,
+    `${calibrationScopeForCounty(scenario.county)} · ${horizon}-year horizon · ${MODEL_VERSION}`,
     MARGIN,
     y,
     CONTENT_W,

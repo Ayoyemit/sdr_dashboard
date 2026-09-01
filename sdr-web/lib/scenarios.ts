@@ -1,9 +1,10 @@
 export type HSSIntensity = "off" | "light" | "moderate" | "intensive";
 export type RunMode = "quick" | "robust";
+export type SupportedCountyId = "kakamega" | "kisii" | "makueni" | "mombasa";
 
 export interface Scenario {
   name: string;
-  county: "kakamega";
+  county: SupportedCountyId;
   hss: {
     enabled: boolean;
     intensity: HSSIntensity;

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import BackToLastResultsLink from "@/components/BackToLastResultsLink";
 import BackToLastComparisonLink from "@/components/BackToLastComparisonLink";
+import { useCounty } from "@/components/county/CountyProvider";
 import InterventionLibrary, {
   applyIntervention,
 } from "@/components/compare/InterventionLibrary";
@@ -17,7 +18,7 @@ import {
   removeIntervention,
   InterventionId,
 } from "@/lib/interventions";
-import { DEFAULT_SCENARIO, Scenario } from "@/lib/scenarios";
+import { DEFAULT_SCENARIO, Scenario, SupportedCountyId } from "@/lib/scenarios";
 import { scenarioFromURLParams } from "@/lib/url-state";
 import { getLastRun } from "@/lib/last-run-storage";
 
@@ -25,6 +26,7 @@ import { getLastCompareResultsHref, saveLastComparison } from "@/lib/compare-sto
 
 export default function ComparePage() {
   const router = useRouter();
+  const { countyId } = useCounty();
   const [scenarioA, setScenarioA] = useState<Scenario>({
     ...DEFAULT_SCENARIO,
     name: "Scenario A · Baseline",
@@ -46,6 +48,11 @@ export default function ComparePage() {
   });
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setScenarioA((prev) => ({ ...prev, county: countyId as SupportedCountyId }));
+    setScenarioB((prev) => ({ ...prev, county: countyId as SupportedCountyId }));
+  }, [countyId]);
 
   useEffect(() => {
     const last = getLastRun();
@@ -82,7 +89,11 @@ export default function ComparePage() {
     setRunning(true);
     setError(null);
     try {
-      const response = await compareScenarios(scenarioA, scenarioB, scenarioA.run.mode);
+      const response = await compareScenarios(
+        { ...scenarioA, county: countyId as SupportedCountyId },
+        { ...scenarioB, county: countyId as SupportedCountyId },
+        scenarioA.run.mode
+      );
       saveLastComparison(response);
       const params = new URLSearchParams();
       params.set("comparison_id", response.comparison_id);

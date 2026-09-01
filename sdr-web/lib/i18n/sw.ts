@@ -57,8 +57,15 @@ export const sw: TranslationTree = {
   },
   scope: {
     title: "Eneo la utumizi",
-    body: "Imeboreshwa kwa {county} (takriban watu milioni 1.87). Matokeo hayajathibitishwa kwa kaunti au nchi nyingine bila uboreshaji wa upya.",
-    county: "Kaunti ya Kakamega, Kenya",
+    body: "Imeboreshwa kwa {county}, Kenya (takriban watu milioni {population}). Matokeo hayajathibitishwa kwa kaunti au nchi nyingine bila uboreshaji wa upya.",
+  },
+  assumptions: {
+    title: "Chaguo zako za hali",
+    body: "Mawazo haya ya msingi yanaendesha makadirio hapa chini. Yarekebishe kwenye Unda na Uendeshe kuchunguza mbadala.",
+    county: "Kaunti: {county}",
+    horizon: "Muda: miaka {years} ({impl} utekelezaji + {maint} matengenezo) · uendeshaji {mode}",
+    interventions: "Uingiliaji: {list}",
+    baselineOnly: "Uingiliaji: hali ya msingi tu (hakuna mpango uliochaguliwa)",
   },
   exec: {
     title: "Muhtasari wa utendaji",
@@ -236,7 +243,7 @@ export const sw: TranslationTree = {
     package: "Mpango wako",
     summary: "Muhtasari wa hali",
     vsBaseline:
-      "Matokeo yote yanalinganisha mpango huu na hali isiyo na uingiliaji kwa miaka {years} katika Kaunti ya Kakamega.",
+      "Matokeo yote yanalinganisha mpango huu na hali isiyo na uingiliaji kwa miaka {years} katika {county}.",
     activeInterventions: "Uingiliaji unaotumika ({count})",
     horizon: "Muda",
     implMaintShort: "miaka {impl} utekelezaji + {maint} matengenezo",
@@ -249,7 +256,7 @@ export const sw: TranslationTree = {
     noIntervention: "hakuna uingiliaji",
   },
   start: {
-    county: "Kaunti ya Kakamega · watu milioni 1.87",
+    county: "Kenya · chagua kaunti kwenye ramani",
     countyActive: "Kaunti ya {name} · watu milioni {pop}",
     hero: "Kubuni utunzaji bora wa akina mama nchini Kenya",
     lead: "Chunguza jinsi kuimarisha mfumo wa afya, matibabu, na ushiriki wa jamii vinavyoweza kubadilisha matokeo ya uzazi — bila ujuzi wa kiufundi.",

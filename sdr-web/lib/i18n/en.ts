@@ -59,8 +59,15 @@ export const en: TranslationTree = {
   },
   scope: {
     title: "Geographic scope",
-    body: "Calibrated for {county} (~1.87M population). Results are not validated for other counties or countries without recalibration.",
-    county: "Kakamega County, Kenya",
+    body: "Calibrated for {county}, Kenya (~{population}M population). Results are not validated for other counties or countries without recalibration.",
+  },
+  assumptions: {
+    title: "Your scenario choices",
+    body: "These assumptions drive the projection below. Adjust them on Design & Run to explore alternatives.",
+    county: "County: {county}",
+    horizon: "Horizon: {years} years ({impl}y implementation + {maint}y maintenance) · {mode} run",
+    interventions: "Interventions: {list}",
+    baselineOnly: "Interventions: baseline only (no package selected)",
   },
   exec: {
     title: "Executive summary",
@@ -248,7 +255,7 @@ export const en: TranslationTree = {
     package: "Your package",
     summary: "Scenario summary",
     vsBaseline:
-      "All results compare this package against no intervention over {years} years in Kakamega County.",
+      "All results compare this package against no intervention over {years} years in {county}.",
     activeInterventions: "Active interventions ({count})",
     horizon: "Horizon",
     implMaintShort: "{impl}y impl + {maint}y maint",
@@ -262,7 +269,7 @@ export const en: TranslationTree = {
     noIntervention: "no intervention",
   },
   start: {
-    county: "Kakamega County · 1.87M population",
+    county: "Kenya · select a county on the map",
     countyActive: "{name} County · {pop}M population",
     hero: "Designing better maternal care across Kenya",
     lead: "Explore how health system strengthening, clinical treatments, and community engagement could change maternal outcomes — without needing a technical background.",

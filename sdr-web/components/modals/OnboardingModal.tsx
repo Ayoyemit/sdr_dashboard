@@ -18,7 +18,7 @@ export default function OnboardingModal() {
       <div className="bg-card border border-border rounded-t-xl sm:rounded-xl p-6 sm:p-8 max-w-lg w-full shadow-2xl max-h-[90dvh] overflow-y-auto">
         <h2 className="font-display text-xl sm:text-2xl mb-3">Welcome to the Decision Tool</h2>
         <p className="text-ink-soft text-sm leading-relaxed mb-4">
-          Explore maternal health scenarios for Kakamega County. Pick a preset, adjust intensity
+          Explore maternal health scenarios across calibrated Kenya counties. Pick a preset, adjust intensity
           in plain language, and run a simulation to see projected outcomes and cost-effectiveness.
         </p>
         <ol className="text-sm text-ink-soft space-y-2 mb-6 list-decimal list-inside">

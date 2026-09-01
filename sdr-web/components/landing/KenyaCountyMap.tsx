@@ -5,7 +5,7 @@ import { useCounty } from "@/components/county/CountyProvider";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { getCountyById, getCountyLabel, isCountySelectable } from "@/lib/counties";
 import {
-  KAKAMEGA_MAP_POINT,
+  COUNTY_MAP_POINTS,
   KENYA_COUNTY_PATHS,
   KENYA_MAP_VIEWBOX,
 } from "@/lib/data/kenya-county-paths";
@@ -39,6 +39,8 @@ export default function KenyaCountyMap({ compact = false }: Props) {
     setTappedId(id);
     setCountyId(id);
   };
+
+  const mapPoint = COUNTY_MAP_POINTS[countyId] ?? COUNTY_MAP_POINTS.kakamega;
 
   return (
     <div className={`relative w-full ${compact ? "h-full min-h-0 flex flex-col" : ""}`}>
@@ -134,15 +136,17 @@ export default function KenyaCountyMap({ compact = false }: Props) {
               );
             })}
 
-            <circle
-              cx={KAKAMEGA_MAP_POINT.x}
-              cy={KAKAMEGA_MAP_POINT.y}
-              r={countyId === "kakamega" ? 6 : 5}
-              fill={countyId === "kakamega" ? "#B5471F" : "#2E5F5C"}
-              stroke="#fdfbf7"
-              strokeWidth="1.5"
-              className="pointer-events-none"
-            />
+            {mapPoint && (
+              <circle
+                cx={mapPoint.x}
+                cy={mapPoint.y}
+                r={6}
+                fill="#B5471F"
+                stroke="#fdfbf7"
+                strokeWidth="1.5"
+                className="pointer-events-none"
+              />
+            )}
           </svg>
 
           {(activeId || countyId) && (

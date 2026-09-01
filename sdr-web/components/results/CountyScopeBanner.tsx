@@ -1,9 +1,18 @@
 "use client";
 
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import { countyDisplayName, formatCountyPopulation, getCountyById } from "@/lib/counties";
+import { SupportedCountyId } from "@/lib/scenarios";
 
-export default function CountyScopeBanner() {
+interface Props {
+  countyId: SupportedCountyId;
+}
+
+export default function CountyScopeBanner({ countyId }: Props) {
   const { t } = useLocale();
+  const meta = getCountyById(countyId);
+  const county = countyDisplayName(countyId);
+  const population = formatCountyPopulation(meta?.population);
 
   return (
     <div className="mb-6 flex items-start gap-3 text-sm bg-paper-deep border border-border rounded-lg px-4 py-3">
@@ -23,7 +32,7 @@ export default function CountyScopeBanner() {
           {t("scope.title")}
         </strong>
         <p className="text-ink-soft leading-relaxed">
-          {t("scope.body", { county: t("scope.county") })}
+          {t("scope.body", { county, population })}
         </p>
       </div>
     </div>

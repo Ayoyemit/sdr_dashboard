@@ -17,9 +17,10 @@ import {
   isCountySelectable,
   storeCountyId,
 } from "@/lib/counties";
+import { SupportedCountyId } from "@/lib/scenarios";
 
 interface CountyContextValue {
-  countyId: string;
+  countyId: SupportedCountyId;
   county: CountyMeta;
   setCountyId: (id: string) => boolean;
   comingSoonCountyId: string | null;
@@ -29,7 +30,7 @@ interface CountyContextValue {
 const CountyContext = createContext<CountyContextValue | null>(null);
 
 export function CountyProvider({ children }: { children: React.ReactNode }) {
-  const [countyId, setCountyIdState] = useState(DEFAULT_COUNTY_ID);
+  const [countyId, setCountyIdState] = useState<SupportedCountyId>(DEFAULT_COUNTY_ID);
   const [comingSoonCountyId, setComingSoonCountyId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export function CountyProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    setCountyIdState(id);
+    setCountyIdState(id as SupportedCountyId);
     storeCountyId(id);
     setComingSoonCountyId(null);
     return true;

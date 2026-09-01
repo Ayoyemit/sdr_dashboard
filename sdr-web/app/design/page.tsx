@@ -8,9 +8,10 @@ import ScenarioSummarySidebar, {
   ScenarioSummaryCompact,
 } from "@/components/design/ScenarioSummarySidebar";
 import StickyActionBar from "@/components/responsive/StickyActionBar";
+import { useCounty } from "@/components/county/CountyProvider";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { runScenario, waitForRun } from "@/lib/api";
-import { DEFAULT_SCENARIO, HSSIntensity, Scenario } from "@/lib/scenarios";
+import { DEFAULT_SCENARIO, HSSIntensity, Scenario, SupportedCountyId } from "@/lib/scenarios";
 import { scenarioFromURLParams, scenarioToSearchParams } from "@/lib/url-state";
 
 const HSS_OPTIONS = [
@@ -22,6 +23,7 @@ const HSS_OPTIONS = [
 
 function DesignContent() {
   const { t } = useLocale();
+  const { countyId } = useCounty();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [scenario, setScenario] = useState<Scenario>(DEFAULT_SCENARIO);
@@ -33,11 +35,13 @@ function DesignContent() {
   useEffect(() => {
     const fromUrl = scenarioFromURLParams(searchParams.get("s"));
     if (fromUrl) {
-      setScenario(fromUrl);
+      setScenario({ ...fromUrl, county: countyId as SupportedCountyId });
       setShowTreatments(fromUrl.treatments.enabled);
       setShowCommunity(fromUrl.community.enabled);
+    } else {
+      setScenario((prev) => ({ ...prev, county: countyId as SupportedCountyId }));
     }
-  }, [searchParams]);
+  }, [searchParams, countyId]);
 
   const update = useCallback((patch: Partial<Scenario>) => {
     setScenario((prev) => ({ ...prev, ...patch }));
@@ -47,14 +51,14 @@ function DesignContent() {
     setRunning(true);
     setError(null);
     try {
-      let response = await runScenario(scenario);
+      let response = await runScenario({ ...scenario, county: countyId as SupportedCountyId });
       if (response.status === "pending") {
         response = await waitForRun(response.run_id);
       }
       if (response.status === "failed" || !response.result) {
         throw new Error(response.error_message || "Simulation failed");
       }
-      const params = scenarioToSearchParams(scenario);
+      const params = scenarioToSearchParams({ ...scenario, county: countyId as SupportedCountyId });
       params.set("run_id", response.run_id);
       router.push(`/results?${params.toString()}`);
     } catch (e) {
@@ -248,7 +252,7 @@ function DesignContent() {
                       })
                     }
                   />
-                  PROMPTS (wired)
+                  PROMPTS
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -268,9 +272,9 @@ function DesignContent() {
                       })
                     }
                   />
-                  MENTORS (wired)
+                  MENTORS
                 </label>
-                <label className="flex items-center gap-2 text-sm text-ink-muted">
+                <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={scenario.community.fqa.enabled}
@@ -284,9 +288,9 @@ function DesignContent() {
                       })
                     }
                   />
-                  FQA <span className="text-[10px] text-warning">● UI only</span>
+                  FQA
                 </label>
-                <label className="flex items-center gap-2 text-sm text-ink-muted">
+                <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={scenario.community.pulse.enabled}
@@ -300,7 +304,7 @@ function DesignContent() {
                       })
                     }
                   />
-                  PULSE <span className="text-[10px] text-warning">● UI only</span>
+                  PULSE
                 </label>
               </div>
             </section>

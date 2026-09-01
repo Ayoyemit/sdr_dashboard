@@ -2,19 +2,15 @@ import { Scenario, ScenarioResult } from "./scenarios";
 import { scenarioToURLParams } from "./url-state";
 
 export const MODEL_VERSION = "SDR-ABM v2026.1";
-export const CALIBRATION_SCOPE = "Kakamega County, Kenya";
+export const CALIBRATION_SCOPE = "Kenya (county-specific calibration)";
 export const CALIBRATION_NOTE =
   "Parameters calibrated from county demographics, facility counts, and published maternal health literature.";
 export const WHO_KENYA_DALY_THRESHOLD_USD = 1042;
 
 import { countyDisplayName as countyLabel } from "./counties";
 
-export const COUNTY_LABELS: Record<string, string> = {
-  kakamega: "Kakamega County",
-};
-
-export function countyDisplayName(county: string): string {
-  return COUNTY_LABELS[county] ?? countyLabel(county);
+export function calibrationScopeForCounty(county: string): string {
+  return `${countyLabel(county)}, Kenya`;
 }
 
 export function scenarioFingerprint(scenario: Scenario): string {
@@ -47,7 +43,7 @@ export function buildReproducibilityRecord(
 ): ReproducibilityRecord {
   return {
     modelVersion: MODEL_VERSION,
-    calibrationScope: CALIBRATION_SCOPE,
+    calibrationScope: calibrationScopeForCounty(scenario.county),
     scenarioName: scenario.name,
     scenarioFingerprint: scenarioFingerprint(scenario),
     runMode: scenario.run.mode,

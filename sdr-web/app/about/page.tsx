@@ -3,7 +3,7 @@ export default function AboutPage() {
     {
       id: "structure",
       title: "Model structure",
-      body: "The Service Delivery Redesign (SDR) model is an agent-based simulation calibrated for Kakamega County, Kenya. It runs monthly time steps over a configurable implementation and maintenance horizon, tracking pregnant women through ANC, intrapartum care, complications, and outcomes across facility levels (Home, L2/3, L4, L5).",
+      body: "The Service Delivery Redesign (SDR) model is an agent-based simulation calibrated for Kakamega, Kisii, Makueni, and Mombasa counties in Kenya. It runs monthly time steps over a configurable implementation and maintenance horizon, tracking pregnant women through ANC, intrapartum care, complications, and outcomes across facility levels (Home, L2/3, L4, L5).",
     },
     {
       id: "assumptions",
@@ -13,7 +13,7 @@ export default function AboutPage() {
     {
       id: "data",
       title: "Data sources",
-      body: "Parameters are calibrated from Kakamega County demographics, facility counts, and published maternal health literature. Cost data is embedded in the model and converted to USD using the Kenya shilling exchange rate.",
+      body: "Parameters are calibrated from county-specific demographics, facility counts, and published maternal health literature for each supported county. Cost data is embedded in the model and converted to USD using the Kenya shilling exchange rate.",
     },
     {
       id: "literature",

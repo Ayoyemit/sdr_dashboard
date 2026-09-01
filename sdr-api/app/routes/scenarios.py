@@ -36,13 +36,19 @@ def _check_rate_limit(request: Request) -> None:
 
 
 def _validate_county(scenario: ScenarioRequest) -> None:
-    if scenario.county != "kakamega":
+    from parameter_loader import get_available_counties
+
+    allowed = get_available_counties()
+    if scenario.county not in allowed:
         raise HTTPException(
             status_code=404,
             detail={
                 "error": {
                     "code": "county_not_supported",
-                    "message": f"County '{scenario.county}' is not yet calibrated. Only Kakamega is available.",
+                    "message": (
+                        f"County '{scenario.county}' is not available. "
+                        f"Supported counties: {', '.join(allowed)}."
+                    ),
                 }
             },
         )

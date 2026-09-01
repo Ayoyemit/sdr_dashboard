@@ -8,19 +8,25 @@ export interface CountyMeta {
   available?: string;
 }
 
-export const COUNTY_STORAGE_KEY = "sdr_county";
-export const DEFAULT_COUNTY_ID = "kakamega";
+export type SupportedCountyId = "kakamega" | "kisii" | "makueni" | "mombasa";
 
-/** Counties shown in the map / selector (matches API meta). */
+export const COUNTY_STORAGE_KEY = "sdr_county";
+export const DEFAULT_COUNTY_ID: SupportedCountyId = "kakamega";
+
+/** Counties with calibrated model parameters (matches API meta / workbook). */
 export const COUNTIES: CountyMeta[] = [
-  { id: "kakamega", name: "Kakamega", calibrated: true, population: 1_872_000 },
-  { id: "kisumu", name: "Kisumu", calibrated: false, available: "Q3 2026" },
-  { id: "nairobi", name: "Nairobi", calibrated: false, available: "Q4 2026" },
-  { id: "bungoma", name: "Bungoma", calibrated: false, available: "Q4 2026" },
+  { id: "kakamega", name: "Kakamega", calibrated: true, population: 1_867_283 },
+  { id: "kisii", name: "Kisii", calibrated: true, population: 1_266_860 },
+  { id: "makueni", name: "Makueni", calibrated: true, population: 987_653 },
+  { id: "mombasa", name: "Mombasa", calibrated: true, population: 1_208_333 },
 ];
 
 export function getCountyById(id: string): CountyMeta | undefined {
   return COUNTIES.find((c) => c.id === id);
+}
+
+export function isSupportedCountyId(id: string): id is SupportedCountyId {
+  return COUNTIES.some((c) => c.id === id);
 }
 
 export function countyDisplayName(id: string): string {
@@ -44,15 +50,20 @@ export function isCountySelectable(id: string): boolean {
   return getCountyById(id)?.calibrated === true;
 }
 
-export function getStoredCountyId(): string {
+export function formatCountyPopulation(population?: number): string {
+  if (!population) return "";
+  return (population / 1_000_000).toFixed(2);
+}
+
+export function getStoredCountyId(): SupportedCountyId {
   if (typeof window === "undefined") return DEFAULT_COUNTY_ID;
   const raw = localStorage.getItem(COUNTY_STORAGE_KEY);
-  return raw && isCountySelectable(raw) ? raw : DEFAULT_COUNTY_ID;
+  return raw && isCountySelectable(raw) && isSupportedCountyId(raw) ? raw : DEFAULT_COUNTY_ID;
 }
 
 export function storeCountyId(id: string): void {
   if (typeof window === "undefined") return;
-  if (isCountySelectable(id)) {
+  if (isCountySelectable(id) && isSupportedCountyId(id)) {
     localStorage.setItem(COUNTY_STORAGE_KEY, id);
   }
 }

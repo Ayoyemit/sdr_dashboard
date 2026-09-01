@@ -24,8 +24,22 @@ def test_presets():
 def test_meta_counties():
     r = client.get("/api/v1/meta/counties")
     assert r.status_code == 200
-    kak = [c for c in r.json()["counties"] if c["id"] == "kakamega"][0]
+    counties = r.json()["counties"]
+    ids = {c["id"] for c in counties}
+    assert ids >= {"kakamega", "kisii", "makueni", "mombasa"}
+    kak = [c for c in counties if c["id"] == "kakamega"][0]
     assert kak["calibrated"] is True
+    assert kak["population"] > 0
+
+
+@pytest.mark.slow
+def test_run_kisii_quick():
+    scenario = STATUS_QUO.model_copy(deep=True)
+    scenario.county = "kisii"
+    scenario.run.mode = "quick"
+    r = client.post("/api/v1/scenarios/run", json=scenario.model_dump())
+    assert r.status_code == 200
+    assert r.json()["status"] == "complete"
 
 
 @pytest.mark.slow

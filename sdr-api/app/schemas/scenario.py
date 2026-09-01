@@ -71,7 +71,7 @@ class RunConfig(BaseModel):
 
 class ScenarioRequest(BaseModel):
     name: str = "My scenario"
-    county: Literal["kakamega"] = "kakamega"
+    county: Literal["kakamega", "kisii", "makueni", "mombasa"] = "kakamega"
     hss: HSSConfig = Field(default_factory=HSSConfig)
     treatments: TreatmentsConfig = Field(default_factory=TreatmentsConfig)
     community: CommunityConfig = Field(default_factory=CommunityConfig)

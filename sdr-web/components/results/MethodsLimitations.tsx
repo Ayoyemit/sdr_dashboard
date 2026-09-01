@@ -3,11 +3,11 @@
 import {
   buildReproducibilityRecord,
   CALIBRATION_NOTE,
-  CALIBRATION_SCOPE,
-  countyDisplayName,
+  calibrationScopeForCounty,
   formatReproducibilityLines,
   MODEL_VERSION,
 } from "@/lib/model-metadata";
+import { countyDisplayName } from "@/lib/counties";
 import { Scenario, ScenarioResult } from "@/lib/scenarios";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 
@@ -55,7 +55,10 @@ export default function MethodsLimitations({ scenario, result, runId }: Props) {
             {t("methods.calibration")}
           </h3>
           <p className="leading-relaxed">
-            {t("methods.calibrationBody", { scope: CALIBRATION_SCOPE, note: CALIBRATION_NOTE })}
+            {t("methods.calibrationBody", {
+              scope: calibrationScopeForCounty(scenario.county),
+              note: CALIBRATION_NOTE,
+            })}
           </p>
         </section>
 

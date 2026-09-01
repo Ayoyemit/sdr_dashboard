@@ -94,21 +94,21 @@ export const INTERVENTION_LIBRARY: LibraryItem[] = [
     name: "FQA",
     group: "community",
     description: "Facility quality assessment",
-    wired: "ui-only",
+    wired: "wired",
   },
   {
     id: "pulse",
     name: "PULSE",
     group: "community",
     description: "Pulse oximetry monitoring program",
-    wired: "ui-only",
+    wired: "wired",
   },
   {
     id: "referral_emt",
     name: "Referral / EMT",
     group: "community",
     description: "Emergency medical transfer network",
-    wired: "partial",
+    wired: "wired",
   },
 ];
 

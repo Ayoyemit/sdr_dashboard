@@ -3,6 +3,7 @@
 import Link from "next/link";
 import BackToLastComparisonLink from "@/components/BackToLastComparisonLink";
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import { countyDisplayName } from "@/lib/counties";
 import { getScenarioHorizonYears, getScenarioPackageItems } from "@/lib/scenario-summary";
 import { Scenario } from "@/lib/scenarios";
 
@@ -39,7 +40,10 @@ function SummaryBody({
 
       <div className="text-xs text-paper/60 mb-3 uppercase tracking-wider">{t("common.vsBaseline")}</div>
       <p className="text-sm text-paper/80 mb-4 leading-relaxed">
-        {t("design.vsBaseline", { years: horizonYears })}
+        {t("design.vsBaseline", {
+          years: horizonYears,
+          county: countyDisplayName(scenario.county),
+        })}
       </p>
 
       <div className="mb-4">

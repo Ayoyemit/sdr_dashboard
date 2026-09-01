@@ -17,6 +17,13 @@ if ! curl -q -sS --connect-timeout 2 "$API_BASE/health" >/dev/null 2>&1; then
   echo "  API_BASE=https://your-api.up.railway.app ./scripts/smoke-test-deploy.sh"
   exit 0
 fi
+health_body=$(curl -q -sS --connect-timeout 5 "$API_BASE/health")
+if [[ "$health_body" != *'"status"'* ]]; then
+  echo "FAIL: /health returned '$health_body' (expected JSON {\"status\":\"ok\"})."
+  echo "This URL may be a Railway placeholder, not your FastAPI service."
+  echo "See docs/RAILWAY_SETUP.md — use the API URL from your Railway sdr-api service."
+  exit 1
+fi
 for county in kakamega kisii; do
   payload=$(cat <<EOF
 {"name":"Smoke $county","county":"$county","run":{"mode":"quick","implementation_years":1,"maintenance_years":0}}

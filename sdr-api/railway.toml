@@ -1,8 +1,2 @@
-[build]
-builder = "DOCKERFILE"
-dockerfilePath = "sdr-api/Dockerfile"
-
-[deploy]
-healthcheckPath = "/health"
-healthcheckTimeout = 300
-restartPolicyType = "ON_FAILURE"
+# Do not point Railway Root Directory at sdr-api/ — the API image needs sim/ from the repo root.
+# Use the railway.toml at the repository root instead (Root Directory = empty / ".").

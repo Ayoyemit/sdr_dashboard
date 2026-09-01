@@ -1,7 +1,8 @@
 [build]
 builder = "NIXPACKS"
+watchPatterns = ["sdr-web/**"]
 
 [deploy]
-startCommand = "npm start"
+startCommand = "npx next start -p $PORT"
 healthcheckPath = "/"
 restartPolicyType = "ON_FAILURE"

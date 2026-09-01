@@ -49,19 +49,18 @@ docker compose up --build
 
 ## Railway deployment
 
-1. Create a Railway project and connect this GitHub repo.
-2. Add **sdr-api** service:
-   - Dockerfile path: `sdr-api/Dockerfile`
-   - Build context: repository root
-   - Env: `ALLOWED_ORIGINS=https://<web-domain>,http://localhost:3000`
-3. Add **sdr-web** service:
-   - Root directory: `sdr-web`
-   - Env: `NEXT_PUBLIC_API_BASE=https://<api-domain>`
-4. Redeploy web after API URL is known (Next.js bakes `NEXT_PUBLIC_*` at build time).
+**Two services** from this monorepo on [Railway](https://railway.app):
 
-See [docs/MODEL_SYNC.md](docs/MODEL_SYNC.md) for **syncing the model from Poppy’s deploy repo**, commit/push workflow, and Railway redeploy steps.
+| Service | Root directory | Build |
+|---------|----------------|--------|
+| **sdr-api** | *(repo root)* | `sdr-api/Dockerfile` |
+| **sdr-web** | `sdr-web/` | Nixpacks (Next.js) |
 
-See [new_dev_ideas/architecture.md](new_dev_ideas/architecture.md) for full deployment details.
+Connect GitHub repo **`Ayoyemit/sdr_dashboard`**, branch **`feature/new-ui`** (or `main` after merge).
+
+See **[docs/RAILWAY_SETUP.md](docs/RAILWAY_SETUP.md)** for dashboard settings, env vars, and troubleshooting.
+
+See [docs/MODEL_SYNC.md](docs/MODEL_SYNC.md) for model sync and push workflow.
 
 ## Tests
 

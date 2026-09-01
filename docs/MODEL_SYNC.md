@@ -193,5 +193,4 @@ Those are reference for parity with the old UI only.
 | `scripts/smoke-test-deploy.sh` | Post-deploy API smoke tests |
 | `sdr-api/Dockerfile` | Copies `sim/` into API image |
 | `sdr-api/app/adapters/scenario_to_sim.py` | Maps API scenarios → sim flags |
-| `sdr-api/railway.toml` | API Railway build (Dockerfile) |
-| `sdr-web/railway.toml` | Web Railway build (Nixpacks) |
+| `docs/RAILWAY_SETUP.md` | Two-service Railway dashboard setup |

@@ -11,3 +11,4 @@ sdr-web/.next/
 .env
 .env.local
 .tmp-ppt-images/
+.railway/

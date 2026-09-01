@@ -193,4 +193,4 @@ Those are reference for parity with the old UI only.
 | `scripts/smoke-test-deploy.sh` | Post-deploy API smoke tests |
 | `sdr-api/Dockerfile` | Copies `sim/` into API image |
 | `sdr-api/app/adapters/scenario_to_sim.py` | Maps API scenarios → sim flags |
-| `docs/RAILWAY_SETUP.md` | Two-service Railway dashboard setup |
+| `docs/RAILWAY_SETUP.md` | Ayoyemi2 dashboard setup (`web` = API, `sdr_dashboard` = UI) |

@@ -4,8 +4,7 @@ WORKDIR /app
 
 COPY sim/requirements.txt /tmp/sim-requirements.txt
 COPY sdr-api/requirements.txt /tmp/api-requirements.txt
-RUN pip install --no-cache-dir -r /tmp/sim-requirements.txt -r /tmp/api-requirements.txt \
-    && pip install --no-cache-dir 'openpyxl>=3.1.0'
+RUN pip install --no-cache-dir -r /tmp/sim-requirements.txt -r /tmp/api-requirements.txt
 
 COPY sim/ /app/sim/
 COPY sdr-api/ /app/sdr-api/

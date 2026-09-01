@@ -38,54 +38,54 @@ Service names are easy to confuse — **`web` is the API**, **`sdr_dashboard` is
 
 ---
 
-## 2. Service: sdr-api
+## 2. Service: `web` (API)
 
 | Setting | Value |
 |---------|--------|
 | **Root Directory** | *(empty — repository root)* |
-| **Config file** | `railway.toml` at repo root |
-| **Builder** | Dockerfile (`sdr-api/Dockerfile`) |
+| **Builder** | Dockerfile → `sdr-api/Dockerfile` |
+| **Config in repo** | None — settings live in the Railway dashboard only |
 
 **Environment variables**
 
 ```env
-ALLOWED_ORIGINS=https://<your-web-service-domain>,http://localhost:3000
+ALLOWED_ORIGINS=https://sdr-kenya.up.railway.app,http://localhost:3000
+DISABLE_PREWARM=true
 ```
 
 Optional:
 
 ```env
 RUN_CACHE_TTL_SECONDS=900
-SDR_PARAMS_PATH=/app/sim/SDR Parameters.xlsx
 ```
 
 **Health check:** `GET /health` → `{"status":"ok"}` (JSON, not plain `OK`).
 
-Copy the **public URL** (e.g. `https://sdr-api-production-xxxx.up.railway.app`).
+**Deploy tab:** clear any custom **Start Command** or **Working Directory** override (leave empty).
 
 ---
 
 ## Docker vs Nixpacks
 
-| Service | Builder | Why |
-|---------|---------|-----|
-| **sdr-api** | **Dockerfile** (required) | Must copy `sim/` + `sdr-api/` from monorepo root into one image |
-| **sdr-web** | **Nixpacks** (default) | Standard Next.js app in one folder — Railway auto-builds it |
+| Railway service | Builder | Why |
+|-----------------|---------|-----|
+| **`web`** | **Dockerfile** | Must copy `sim/` + `sdr-api/` from monorepo root |
+| **`sdr_dashboard`** | **Nixpacks** | Standard Next.js in `sdr-web/` |
 
-`sdr-web/Dockerfile` is kept for **local** `docker compose` only. You do not need Docker on Railway for the web service.
+Do **not** add `railway.toml` files to this repo — they conflicted with the working dashboard setup.
+
+`sdr-web/Dockerfile` is for **local** `docker compose` only.
 
 ---
 
-## 3. Service: sdr-web
+## 3. Service: `sdr_dashboard` (frontend)
 
 | Setting | Value |
 |---------|--------|
-| **Root Directory** | `sdr-web` ← **critical** — if this is empty, the build will fail |
-| **Config file** | `sdr-web/railway.toml` |
+| **Root Directory** | `sdr-web` ← **critical** |
 | **Builder** | Nixpacks (auto-detects Next.js) |
 
-> **Do not** point this service at the repo root. The root `railway.toml` is for **sdr-api only**.
-> If Root Directory is wrong, you may see: `The working directory "/app" does not exist`.
+> If Root Directory is empty, you may see: `The working directory "/app" does not exist`.
 
 **Environment variables** (required at **build** time):
 
@@ -144,8 +144,8 @@ npx @railway/cli logs
 | API build fails: `COPY sim/` | **Root Directory** must be repo root, not `sdr-api/` |
 | Web loads but runs fail (CORS) | Set `ALLOWED_ORIGINS` to exact web URL |
 | Web can’t reach API | Set `NEXT_PUBLIC_API_BASE` and **redeploy sdr-web** |
-| Push doesn’t trigger deploy | Match Railway branch to `feature/new-ui` or push to `main` |
-| Old Streamlit app deploys | Remove legacy Streamlit service; use Docker + Nixpacks (`Procfile.streamlit` is local-only) |
+| Push doesn’t trigger deploy | Match Railway branch to `feature/new-ui` |
+| Old Streamlit app deploys | Legacy `Procfile.streamlit` is local-only; not used by Railway |
 
 ---
 

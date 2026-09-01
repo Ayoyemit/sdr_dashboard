@@ -14,6 +14,22 @@ Pushing to `ayoyemit feature/new-ui` does **not** redeploy if Railway still watc
 
 ---
 
+## Your Railway project (Ayoyemi2)
+
+| Railway service | Role | URL | Root directory |
+|-----------------|------|-----|----------------|
+| **`web`** | FastAPI API | `https://web-production-41670.up.railway.app` | *(repo root)* |
+| **`sdr_dashboard`** | Next.js UI | `https://sdr-kenya.up.railway.app` | `sdr-web` |
+
+Env vars:
+
+- **`web`:** `ALLOWED_ORIGINS` must include `https://sdr-kenya.up.railway.app`
+- **`sdr_dashboard`:** `NEXT_PUBLIC_API_BASE=https://web-production-41670.up.railway.app`
+
+Service names are easy to confuse — **`web` is the API**, **`sdr_dashboard` is the frontend**.
+
+---
+
 ## 1. Connect GitHub
 
 1. Railway → your project → **Settings**

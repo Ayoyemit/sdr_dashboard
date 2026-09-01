@@ -55,7 +55,7 @@ Copy the **public URL** (e.g. `https://sdr-api-production-xxxx.up.railway.app`).
 |---------|--------|
 | **Root Directory** | `sdr-web` |
 | **Config file** | `sdr-web/railway.toml` |
-| **Builder** | Nixpacks (auto) |
+| **Builder** | Dockerfile (`Dockerfile` relative to `sdr-web/`) |
 
 **Environment variables** (required at **build** time):
 
@@ -110,6 +110,7 @@ npx @railway/cli logs
 | Symptom | Fix |
 |---------|-----|
 | `/health` returns plain `OK` | Wrong service or placeholder — not your FastAPI app |
+| Web: `working directory "/app" does not exist` | Set **Root Directory** to `sdr-web` and use Dockerfile builder (not Nixpacks with wrong root) |
 | API build fails: `COPY sim/` | **Root Directory** must be repo root, not `sdr-api/` |
 | Web loads but runs fail (CORS) | Set `ALLOWED_ORIGINS` to exact web URL |
 | Web can’t reach API | Set `NEXT_PUBLIC_API_BASE` and **redeploy sdr-web** |

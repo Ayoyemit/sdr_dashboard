@@ -1,8 +1,7 @@
 [build]
-builder = "NIXPACKS"
-watchPatterns = ["sdr-web/**"]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "npx next start -p $PORT"
 healthcheckPath = "/"
 restartPolicyType = "ON_FAILURE"

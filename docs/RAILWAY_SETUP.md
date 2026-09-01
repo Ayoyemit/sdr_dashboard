@@ -44,7 +44,7 @@ Service names are easy to confuse — **`web` is the API**, **`sdr_dashboard` is
 |---------|--------|
 | **Root Directory** | *(empty — repository root)* |
 | **Builder** | Dockerfile → `sdr-api/Dockerfile` |
-| **Config in repo** | None — settings live in the Railway dashboard only |
+| **Config file** | `sdr-api/railway.toml` |
 
 **Environment variables**
 
@@ -83,9 +83,11 @@ Do **not** put `railway.toml` at the **repo root** — Railway applies it to eve
 | Setting | Value |
 |---------|--------|
 | **Root Directory** | `sdr-web` ← **critical** |
-| **Config file** | `sdr-web/railway.toml` (via Root Directory `sdr-web`) |
+| **Builder** | Railpack / Nixpacks (auto-detects Next.js) |
+| **Dockerfile** | *(none — do not use API Dockerfile)* |
+| **Config file** | *(none)* |
 
-> If Root Directory is empty, you may see: `The working directory "/app" does not exist`.
+> If Root Directory is empty, or this service inherits `sdr-api/railway.toml`, the build fails (`/sim` or `/sdr-api` not found).
 
 **Environment variables** (required at **build** time):
 

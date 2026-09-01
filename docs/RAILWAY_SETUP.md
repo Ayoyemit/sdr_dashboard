@@ -72,7 +72,9 @@ RUN_CACHE_TTL_SECONDS=900
 | **`web`** | **Dockerfile** | Must copy `sim/` + `sdr-api/` from monorepo root |
 | **`sdr_dashboard`** | **Nixpacks** | Standard Next.js in `sdr-web/` |
 
-Do **not** add `railway.toml` files to this repo — they conflicted with the working dashboard setup.
+Do **not** remove root `railway.toml` — without it, the **`web`** service may fall back to **Railpack** (no `package.json` at repo root → deploy fails). The file only applies to the API service (repo root); the frontend uses Nixpacks from `sdr-web/`.
+
+If API deploys fail with no Docker build, check in Railway → **`web`** → Settings that **Dockerfile path** is `sdr-api/Dockerfile` and **config file** is `railway.toml`.
 
 `sdr-web/Dockerfile` is for **local** `docker compose` only.
 

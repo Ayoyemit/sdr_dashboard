@@ -55,6 +55,12 @@ export function getCachedComparison(comparisonId: string): CompareResponse | nul
   }
 }
 
+export function clearLastComparisonSession(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(COMPARISON_STORAGE_KEY);
+  sessionStorage.removeItem(LAST_COMPARISON_REF_KEY);
+}
+
 export function getLastCompareResultsHref(): string | null {
   const ref = getLastComparisonRef();
   if (!ref) return null;

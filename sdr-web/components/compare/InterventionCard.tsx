@@ -1,40 +1,57 @@
 "use client";
 
-import { HSSIntensity } from "@/lib/scenarios";
-import {
-  hasIntervention,
-  INTERVENTION_LIBRARY,
-  InterventionId,
-  LibraryItem,
-  removeIntervention,
-  setHssIntensity,
-} from "@/lib/interventions";
+import Link from "next/link";
 import PillSelector from "@/components/PillSelector";
-
-const HSS_OPTIONS = [
-  { value: "light", label: "Light" },
-  { value: "moderate", label: "Moderate" },
-  { value: "intensive", label: "Intensive" },
-];
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import {
+  getLibraryItem,
+  HSS_COMPARE_OPTIONS,
+  InterventionId,
+  MOMISH_OPTIONS,
+  MomishLevel,
+  SINGLE_COMPARE_OPTIONS,
+  SingleInterventionLevel,
+} from "@/lib/interventions";
+import { HSSIntensity } from "@/lib/scenarios";
 
 interface Props {
   id: InterventionId;
   hssIntensity?: HSSIntensity;
-  onIntensityChange?: (intensity: HSSIntensity) => void;
+  singleLevel?: SingleInterventionLevel;
+  momishLevel?: MomishLevel;
+  onHssChange?: (intensity: HSSIntensity) => void;
+  onSingleChange?: (level: SingleInterventionLevel) => void;
+  onMomishChange?: (level: MomishLevel) => void;
   onRemove: () => void;
-}
-
-function getItem(id: InterventionId): LibraryItem {
-  return INTERVENTION_LIBRARY.find((i) => i.id === id)!;
 }
 
 export default function InterventionCard({
   id,
   hssIntensity,
-  onIntensityChange,
+  singleLevel,
+  momishLevel,
+  onHssChange,
+  onSingleChange,
+  onMomishChange,
   onRemove,
 }: Props) {
-  const item = getItem(id);
+  const { t } = useLocale();
+  const item = getLibraryItem(id);
+
+  const hssOptions = HSS_COMPARE_OPTIONS.map((o) => ({
+    value: o.value,
+    label: t(o.labelKey),
+  }));
+
+  const singleOptions = SINGLE_COMPARE_OPTIONS.map((o) => ({
+    value: o.value,
+    label: t(o.labelKey),
+  }));
+
+  const momishOpts = MOMISH_OPTIONS.map((o) => ({
+    value: o.value,
+    label: t(o.labelKey),
+  }));
 
   return (
     <div className="bg-card border border-border rounded-lg p-4">
@@ -43,7 +60,7 @@ export default function InterventionCard({
           <h4 className="text-sm font-medium flex items-center gap-2">
             {item.name}
             {item.wired === "ui-only" && (
-              <span className="text-[9px] text-warning">● UI only</span>
+              <span className="text-[9px] text-warning">● {t("common.uiOnly")}</span>
             )}
             {item.wired === "partial" && (
               <span className="text-[9px] text-warning">● partial</span>
@@ -61,28 +78,35 @@ export default function InterventionCard({
         </button>
       </div>
 
-      {id === "hss" && onIntensityChange && (
+      {id === "hss" && onHssChange && (
         <div className="mt-3">
           <PillSelector
-            options={HSS_OPTIONS}
+            options={hssOptions}
             value={hssIntensity ?? "moderate"}
-            onChange={(v) => onIntensityChange(v as HSSIntensity)}
+            onChange={(v) => onHssChange(v as HSSIntensity)}
           />
         </div>
       )}
 
-      {id === "fqa" && (
-        <p className="text-[10px] text-ink-muted mt-2 italic">
-          Stored on scenario; not yet wired into simulation.
-        </p>
+      {item.group === "single" && onSingleChange && (
+        <div className="mt-3">
+          <PillSelector
+            options={singleOptions}
+            value={singleLevel === "off" ? "current" : (singleLevel ?? "current")}
+            onChange={(v) => onSingleChange(v as SingleInterventionLevel)}
+          />
+        </div>
       )}
-      {id === "pulse" && (
-        <p className="text-[10px] text-ink-muted mt-2 italic">
-          Stored on scenario; not yet wired into simulation.
-        </p>
+
+      {item.group === "momish" && onMomishChange && (
+        <div className="mt-3">
+          <PillSelector
+            options={momishOpts}
+            value={momishLevel ?? "off"}
+            onChange={(v) => onMomishChange(v as MomishLevel)}
+          />
+        </div>
       )}
     </div>
   );
 }
-
-export { getItem, hasIntervention, removeIntervention, setHssIntensity };

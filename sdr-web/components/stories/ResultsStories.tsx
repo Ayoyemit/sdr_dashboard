@@ -16,12 +16,14 @@ import {
 } from "recharts";
 import ChartPanel from "@/components/export/ChartPanel";
 import ChartFootnote from "@/components/results/ChartFootnote";
-import KPITile from "@/components/KPITile";
+import DeathsByCauseChart from "@/components/results/DeathsByCauseChart";
+import FacilityLevelProcessCharts from "@/components/results/FacilityLevelProcessCharts";
+import FacilityMortalityChart from "@/components/results/FacilityMortalityChart";
 import { useLocale } from "@/components/i18n/LocaleProvider";
-import { WHO_KENYA_DALY_THRESHOLD_USD } from "@/lib/model-metadata";
 import StoryIngredients from "@/components/results/StoryIngredients";
 import IndicatorStoryCharts from "@/components/results/IndicatorStoryCharts";
-import { shouldShowKpi, shouldShowStory } from "@/lib/indicators";
+import { shouldShowStory } from "@/lib/indicators";
+import { isCostStoryAvailable } from "@/lib/results-summary";
 import {
   chartTooltipProps,
   getChartLayout,
@@ -29,19 +31,20 @@ import {
   yAxisLabel,
 } from "@/lib/chart-labels";
 import { useIsMobile } from "@/lib/use-breakpoint";
-import { ScenarioResult } from "@/lib/scenarios";
+import { ScenarioResult, SupportedCountyId } from "@/lib/scenarios";
 
 interface Props {
   result: ScenarioResult;
   selectedIndicators: Set<string>;
+  countyId: SupportedCountyId;
 }
 
-export default function ResultsStories({ result, selectedIndicators }: Props) {
-  const { t, locale } = useLocale();
+export default function ResultsStories({ result, selectedIndicators, countyId }: Props) {
+  const { t } = useLocale();
   const isMobile = useIsMobile();
   const chartLayout = getChartLayout(isMobile);
-  const { summary, timeseries, cost_breakdown, deaths_by_cause, resource_adequacy_end_of_run } =
-    result;
+  const { summary, timeseries, cost_breakdown, deaths_by_cause } = result;
+  const showCostStory = isCostStoryAvailable(countyId);
 
   const ciLower = timeseries.maternal_mortality_rate.ci_lower;
   const ciUpper = timeseries.maternal_mortality_rate.ci_upper;
@@ -62,63 +65,17 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
     l23: timeseries.delivery_location.intervention.l23[i],
   }));
 
-  const costEffective = summary.cost_effectiveness_ratio_to_threshold < 1;
-  const threshold = WHO_KENYA_DALY_THRESHOLD_USD.toLocaleString();
-
-  const showKpi = shouldShowStory("kpi", selectedIndicators);
   const showStory01 = shouldShowStory("story01", selectedIndicators);
   const showStory02 = shouldShowStory("story02", selectedIndicators);
   const showStory03 = shouldShowStory("story03", selectedIndicators);
   const showStory04 = shouldShowStory("story04", selectedIndicators);
+  const facilityMortality = timeseries.mortality_by_facility_level;
+  const facilityLevelEnd = timeseries.facility_level_end_of_run;
 
-  const noStories =
-    !showStory01 && !showStory02 && !showStory03 && !showStory04 && !showKpi;
+  const noStories = !showStory01 && !showStory02 && !showStory03 && !showStory04;
 
   return (
     <div className="space-y-12">
-      {showKpi && (
-        <section>
-          <StoryIngredients story="kpi" selected={selectedIndicators} />
-          <div className="grid grid-cols-1 min-[480px]:grid-cols-2 md:grid-cols-4 gap-4">
-          {shouldShowKpi("deaths", selectedIndicators) && (
-            <KPITile
-              label={t("kpi.deaths")}
-              value={summary.maternal_deaths_averted.toLocaleString(undefined, {
-                maximumFractionDigits: 0,
-              })}
-            />
-          )}
-          {shouldShowKpi("dalys", selectedIndicators) && (
-            <KPITile
-              label={t("kpi.dalys")}
-              value={summary.dalys_averted.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            />
-          )}
-          {shouldShowKpi("costPerDaly", selectedIndicators) && (
-            <KPITile
-              label={t("kpi.costPerDaly")}
-              value={`$${summary.cost_per_daly_averted_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-              accent
-            />
-          )}
-          {shouldShowKpi("totalCost", selectedIndicators) && (
-            <KPITile
-              label={t("kpi.totalCost")}
-              value={`$${summary.cumulative_cost_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-            />
-          )}
-          {shouldShowKpi("severe", selectedIndicators) && (
-            <KPITile
-              label={t("kpi.severeOutcomes")}
-              value={summary.severe_maternal_outcomes_averted.toLocaleString(undefined, {
-                maximumFractionDigits: 0,
-              })}
-            />
-          )}
-          </div>
-        </section>
-      )}
-
       {noStories && (
         <div className="bg-paper-deep border border-border rounded-lg p-8 text-center text-ink-muted">
           {t("stories.noIndicators")}
@@ -130,68 +87,14 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
           <div className="text-[11px] uppercase tracking-widest text-ink-muted mb-2">
             {t("stories.story01")}
           </div>
-          <h2 className="font-display text-2xl mb-2 editorial-underline inline">
-            {t("stories.worthIt")}
-          </h2>
+          <h2 className="font-display text-2xl mb-2">{t("stories.healthOutcomes")}</h2>
           <StoryIngredients story="story01" selected={selectedIndicators} />
-          {locale === "en" ? (
-            <p className="text-ink-soft mb-6 max-w-2xl">{result.narrative.in_plain_english}</p>
-          ) : (
-            <details className="mb-6 text-sm border border-border-soft rounded-lg px-4 py-3 bg-paper-deep/40">
-              <summary className="cursor-pointer text-ink-muted hover:text-ink">
-                {t("exec.englishDetail")}
-              </summary>
-              <p className="mt-3 text-ink-soft leading-relaxed">{result.narrative.in_plain_english}</p>
-            </details>
-          )}
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <div className="font-display text-3xl sm:text-5xl text-accent num mb-2">
-                $
-                {summary.cost_per_daly_averted_usd.toLocaleString(undefined, {
-                  maximumFractionDigits: 0,
-                })}
-              </div>
-              <p className="text-sm text-ink-muted">
-                {t("stories.perDalyVs", { threshold })}
-                {costEffective ? t("stories.costEffective") : t("stories.aboveThreshold")}
-              </p>
-            </div>
-            <ChartPanel
-              chartId="cost-breakdown"
-              title={t("charts.costBreakdown")}
-              filename="cost-breakdown"
-              height={260}
-              showTitle
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={cost_breakdown} margin={chartLayout.margins}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2DAC8" />
-                  <XAxis
-                    dataKey="category"
-                    tick={chartLayout.tick}
-                    label={xAxisLabel(t("charts.costCategory"))}
-                  />
-                  <YAxis tick={chartLayout.tick} label={yAxisLabel(t("charts.costUsd"))} />
-                  <Tooltip {...chartTooltipProps({ valueKind: "currency" })} />
-                  <Bar dataKey="amount_usd" fill="#2E5F5C" />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartPanel>
-            <ChartFootnote>
-              {t("stories.footnoteCost", { threshold })}
-            </ChartFootnote>
-          </div>
-        </section>
-      )}
-
-      {showStory02 && (
-        <section className="bg-card border border-border rounded-xl p-4 md:p-8">
-          <div className="text-[11px] uppercase tracking-widest text-ink-muted mb-2">
-            {t("stories.story02")}
-          </div>
-          <h2 className="font-display text-2xl mb-2">{t("stories.mothers")}</h2>
-          <StoryIngredients story="story02" selected={selectedIndicators} />
+          {facilityMortality ? (
+            <FacilityMortalityChart
+              months={timeseries.months}
+              series={facilityMortality.intervention}
+            />
+          ) : null}
           <ChartPanel
             chartId="maternal-mortality"
             title={t("charts.mmrTitle")}
@@ -202,10 +105,7 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
               <LineChart data={mmData} margin={chartLayout.marginsWithLegend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2DAC8" />
                 <XAxis dataKey="month" tick={chartLayout.tick} label={xAxisLabel(t("charts.month"))} />
-                <YAxis
-                  tick={chartLayout.tick}
-                  label={yAxisLabel(t("charts.mmr"))}
-                />
+                <YAxis tick={chartLayout.tick} label={yAxisLabel(t("charts.mmr"))} />
                 <Tooltip {...chartTooltipProps({ valueKind: "mmr", labelPrefix: t("charts.month") })} />
                 <Legend {...chartLayout.legend} />
                 {showCi && (
@@ -220,13 +120,7 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
                     isAnimationActive={false}
                   />
                 )}
-                <Line
-                  type="monotone"
-                  dataKey="baseline"
-                  stroke="#9C9082"
-                  name="Baseline MMR"
-                  dot={false}
-                />
+                <Line type="monotone" dataKey="baseline" stroke="#9C9082" name="Baseline MMR" dot={false} />
                 <Line
                   type="monotone"
                   dataKey="intervention"
@@ -243,41 +137,17 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
               ? t("stories.footnoteMmrCi", { runs: result.meta.n_runs })
               : t("stories.footnoteMmrQuick")}
           </ChartFootnote>
-          <div className="mt-6 grid md:grid-cols-2 gap-3">
-            {deaths_by_cause.slice(0, 4).map((d) => (
-              <div
-                key={d.cause}
-                className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-2 text-sm border-b border-border-soft py-2"
-              >
-                <span>{d.cause}</span>
-                <span className="num text-positive shrink-0">
-                  {t("stories.reduction", { pct: d.percent_reduction })}
-                </span>
-              </div>
-            ))}
-          </div>
-          <IndicatorStoryCharts
-            result={result}
-            indicatorIds={[
-              "cs_rate",
-              "normal_referral",
-              "emergency_transfer",
-              "high_risk_pregnancy",
-              "maternal_complication_rate",
-              "severe_maternal_outcomes",
-            ]}
-            selected={selectedIndicators}
-          />
+          <DeathsByCauseChart deathsByCause={deaths_by_cause} />
         </section>
       )}
 
-      {showStory03 && (
+      {showStory02 && (
         <section className="bg-card border border-border rounded-xl p-4 md:p-8">
           <div className="text-[11px] uppercase tracking-widest text-ink-muted mb-2">
-            {t("stories.story03")}
+            {t("stories.story02")}
           </div>
           <h2 className="font-display text-2xl mb-2">{t("stories.delivery")}</h2>
-          <StoryIngredients story="story03" selected={selectedIndicators} />
+          <StoryIngredients story="story02" selected={selectedIndicators} />
           <ChartPanel
             chartId="delivery-location"
             title={t("charts.deliveryTitle")}
@@ -288,11 +158,7 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
               <AreaChart data={deliveryData} margin={chartLayout.marginsWithLegend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2DAC8" />
                 <XAxis dataKey="month" tick={chartLayout.tick} label={xAxisLabel(t("charts.month"))} />
-                <YAxis
-                  tick={chartLayout.tick}
-                  unit="%"
-                  label={yAxisLabel(t("charts.shareBirths"))}
-                />
+                <YAxis tick={chartLayout.tick} unit="%" label={yAxisLabel(t("charts.shareBirths"))} />
                 <Tooltip {...chartTooltipProps({ valueKind: "percent", labelPrefix: t("charts.month") })} />
                 <Legend {...chartLayout.legend} />
                 <Area type="monotone" dataKey="l4" stackId="1" stroke="#2E5F5C" fill="#2E5F5C" name="L4" />
@@ -303,11 +169,25 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
             </ResponsiveContainer>
           </ChartPanel>
           <ChartFootnote>{t("stories.footnoteDelivery")}</ChartFootnote>
-          <IndicatorStoryCharts
-            result={result}
-            indicatorIds={["anc_coverage", "anc_rate"]}
-            selected={selectedIndicators}
-          />
+        </section>
+      )}
+
+      {showStory03 && (
+        <section className="bg-card border border-border rounded-xl p-4 md:p-8">
+          <div className="text-[11px] uppercase tracking-widest text-ink-muted mb-2">
+            {t("stories.story03")}
+          </div>
+          <h2 className="font-display text-2xl mb-2">{t("stories.process")}</h2>
+          <StoryIngredients story="story03" selected={selectedIndicators} />
+          {facilityLevelEnd ? (
+            <FacilityLevelProcessCharts bundle={facilityLevelEnd} />
+          ) : (
+            <IndicatorStoryCharts
+              result={result}
+              indicatorIds={["anc_coverage", "anc_rate", "cs_rate", "normal_referral"]}
+              selected={selectedIndicators}
+            />
+          )}
         </section>
       )}
 
@@ -316,35 +196,51 @@ export default function ResultsStories({ result, selectedIndicators }: Props) {
           <div className="text-[11px] uppercase tracking-widest text-ink-muted mb-2">
             {t("stories.story04")}
           </div>
-          <h2 className="font-display text-2xl mb-2">{t("stories.coping")}</h2>
+          <h2 className="font-display text-2xl mb-2 editorial-underline inline">
+            {t("stories.interventionCost")}
+          </h2>
           <StoryIngredients story="story04" selected={selectedIndicators} />
-          <div className="space-y-4">
-            {resource_adequacy_end_of_run.map((r) => (
-              <div key={r.name}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>{r.name}</span>
-                  <span className="num">{t("stories.adequate", { pct: r.percent })}</span>
+          {!showCostStory ? (
+            <div className="bg-paper-deep border border-border-soft rounded-lg px-6 py-8 text-center text-sm text-ink-muted">
+              {t("stories.kakamegaOnly")}
+            </div>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-2 gap-8">
+                <div>
+                  <div className="font-display text-3xl sm:text-5xl text-accent num mb-2">
+                    $
+                    {summary.cumulative_cost_usd.toLocaleString(undefined, {
+                      maximumFractionDigits: 0,
+                    })}
+                  </div>
+                  <p className="text-sm text-ink-muted">{t("stories.totalCostCaption")}</p>
                 </div>
-                <div className="h-2 bg-paper-deep rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${
-                      r.status === "positive"
-                        ? "bg-positive"
-                        : r.status === "warning"
-                          ? "bg-warning"
-                          : "bg-negative"
-                    }`}
-                    style={{ width: `${Math.min(r.percent, 100)}%` }}
-                  />
-                </div>
+                <ChartPanel
+                  chartId="cost-breakdown"
+                  title={t("charts.costBreakdown")}
+                  filename="cost-breakdown"
+                  height={260}
+                  showTitle
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={cost_breakdown} margin={chartLayout.margins}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E2DAC8" />
+                      <XAxis
+                        dataKey="category"
+                        tick={chartLayout.tick}
+                        label={xAxisLabel(t("charts.costCategory"))}
+                      />
+                      <YAxis tick={chartLayout.tick} label={yAxisLabel(t("charts.costUsd"))} />
+                      <Tooltip {...chartTooltipProps({ valueKind: "currency" })} />
+                      <Bar dataKey="amount_usd" fill="#2E5F5C" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartPanel>
+                <ChartFootnote>{t("stories.footnoteCost")}</ChartFootnote>
               </div>
-            ))}
-          </div>
-          <IndicatorStoryCharts
-            result={result}
-            indicatorIds={["equipment_capacity", "supply_capacity"]}
-            selected={selectedIndicators}
-          />
+            </>
+          )}
         </section>
       )}
     </div>

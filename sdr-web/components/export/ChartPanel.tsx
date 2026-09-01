@@ -1,11 +1,11 @@
 "use client";
 
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useIsMobile } from "@/lib/use-breakpoint";
 import { chartHeight } from "@/lib/chart-labels";
 import ChartExportMenu from "./ChartExportMenu";
+import ExpandableOverlay, { ExpandButton } from "./ExpandableOverlay";
 
 interface Props {
   chartId: string;
@@ -19,19 +19,24 @@ interface Props {
   mobileHeight?: number;
 }
 
+function computeExpandedChartHeight(): number {
+  if (typeof window === "undefined") return 520;
+  return Math.min(Math.max(Math.round(window.innerHeight * 0.62), 360), 640);
+}
+
 function ChartShell({
   chartRef,
   chartId,
   title,
   filename,
-  shellHeight,
+  pixelHeight,
   children,
 }: {
   chartRef: React.RefObject<HTMLDivElement>;
   chartId: string;
   title: string;
   filename: string;
-  shellHeight: number | string;
+  pixelHeight: number;
   children: ReactNode;
 }) {
   return (
@@ -40,10 +45,12 @@ function ChartShell({
       data-chart-id={chartId}
       data-chart-title={title}
       data-chart-filename={filename}
-      className="chart-export-panel w-full h-full bg-white rounded-md border border-border/40"
-      style={{ height: shellHeight }}
+      className="chart-export-panel w-full bg-white rounded-md border border-border/40"
+      style={{ height: pixelHeight, minHeight: pixelHeight }}
     >
-      {children}
+      <div className="w-full" style={{ height: pixelHeight, minHeight: pixelHeight }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -62,24 +69,42 @@ export default function ChartPanel({
   const inlineRef = useRef<HTMLDivElement>(null!);
   const expandedRef = useRef<HTMLDivElement>(null!);
   const [expanded, setExpanded] = useState(false);
-  const exportRef = expanded ? expandedRef : inlineRef;
+  const [expandedReady, setExpandedReady] = useState(false);
+  const [expandedHeight, setExpandedHeight] = useState(520);
 
   const inlineHeight = isMobile ? (mobileHeight ?? chartHeight(height, true)) : height;
+  const exportRef = expanded ? expandedRef : inlineRef;
 
-  const closeExpanded = useCallback(() => setExpanded(false), []);
+  const openExpanded = () => {
+    setExpandedHeight(computeExpandedChartHeight());
+    setExpanded(true);
+  };
+
+  const closeExpanded = () => {
+    setExpanded(false);
+    setExpandedReady(false);
+  };
 
   useEffect(() => {
     if (!expanded) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeExpanded();
-    };
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKeyDown);
+    let cancelled = false;
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!cancelled) {
+          setExpandedReady(true);
+          window.dispatchEvent(new Event("resize"));
+        }
+      });
+    });
+    const resizeTimer = window.setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 120);
     return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", onKeyDown);
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      window.clearTimeout(resizeTimer);
     };
-  }, [expanded, closeExpanded]);
+  }, [expanded, expandedHeight]);
 
   return (
     <>
@@ -91,28 +116,7 @@ export default function ChartPanel({
             <span className="sr-only">{title}</span>
           )}
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              className="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 text-xs text-ink-soft border border-border rounded-md hover:bg-paper-deep hover:text-ink transition"
-              aria-label={`Expand ${title}`}
-            >
-              <svg
-                viewBox="0 0 16 16"
-                className="w-3.5 h-3.5 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                aria-hidden
-              >
-                <path
-                  d="M6 2H2v4M10 2h4v4M10 14h4v-4M6 14H2v-4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span className="hidden sm:inline">{t("charts.expand")}</span>
-            </button>
+            <ExpandButton onClick={openExpanded} label={t("charts.expand")} />
             <ChartExportMenu containerRef={exportRef} filenameBase={filename} />
           </div>
         </div>
@@ -121,59 +125,33 @@ export default function ChartPanel({
           chartId={chartId}
           title={title}
           filename={filename}
-          shellHeight={inlineHeight}
+          pixelHeight={inlineHeight}
         >
-          {children}
+          {!expanded ? children : null}
         </ChartShell>
       </div>
 
-      {expanded &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-8 bg-ink/50 backdrop-blur-sm safe-bottom"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`chart-dialog-${chartId}`}
-            onClick={closeExpanded}
-          >
-            <div
-              className="w-full h-[100dvh] sm:h-auto sm:max-h-[92dvh] max-w-6xl bg-card border-0 sm:border border-border rounded-none sm:rounded-xl shadow-2xl p-4 sm:p-5 md:p-8 flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-4 mb-4 sm:mb-5 shrink-0">
-                <div className="min-w-0">
-                  <h3 id={`chart-dialog-${chartId}`} className="font-display text-lg sm:text-xl">
-                    {title}
-                  </h3>
-                  <p className="text-xs text-ink-muted mt-1">{t("charts.escHint")}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <ChartExportMenu containerRef={expandedRef} filenameBase={filename} />
-                  <button
-                    type="button"
-                    onClick={closeExpanded}
-                    className="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 text-xs border border-border rounded-md hover:bg-paper-deep transition"
-                  >
-                    {t("charts.close")}
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 min-h-0" style={{ height: "min(72vh, 640px)" }}>
-                <ChartShell
-                  chartRef={expandedRef}
-                  chartId={chartId}
-                  title={title}
-                  filename={filename}
-                  shellHeight="100%"
-                >
-                  {children}
-                </ChartShell>
-              </div>
+      <ExpandableOverlay
+        open={expanded}
+        onClose={closeExpanded}
+        title={title}
+        titleId={`chart-dialog-${chartId}`}
+        actions={<ChartExportMenu containerRef={expandedRef} filenameBase={filename} />}
+      >
+        <ChartShell
+          chartRef={expandedRef}
+          chartId={`${chartId}-expanded`}
+          title={title}
+          filename={filename}
+          pixelHeight={expandedHeight}
+        >
+          {expanded && expandedReady ? (
+            <div key={`${chartId}-expanded-body`} className="w-full h-full">
+              {children}
             </div>
-          </div>,
-          document.body
-        )}
+          ) : null}
+        </ChartShell>
+      </ExpandableOverlay>
     </>
   );
 }

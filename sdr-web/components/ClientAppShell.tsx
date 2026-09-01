@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import OnboardingModal from "@/components/modals/OnboardingModal";
 import TopNav from "@/components/TopNav";
 import { CountyProvider } from "@/components/county/CountyProvider";
@@ -9,7 +10,9 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
   return (
     <LocaleProvider>
       <CountyProvider>
-        <TopNav />
+        <Suspense fallback={<header className="h-14 border-b border-border bg-paper/95" />}>
+          <TopNav />
+        </Suspense>
         <main>{children}</main>
         <OnboardingModal />
       </CountyProvider>

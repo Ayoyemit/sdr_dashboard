@@ -59,6 +59,8 @@ docker compose up --build
    - Env: `NEXT_PUBLIC_API_BASE=https://<api-domain>`
 4. Redeploy web after API URL is known (Next.js bakes `NEXT_PUBLIC_*` at build time).
 
+See [docs/MODEL_SYNC.md](docs/MODEL_SYNC.md) for **syncing the model from Poppy’s deploy repo**, commit/push workflow, and Railway redeploy steps.
+
 See [new_dev_ideas/architecture.md](new_dev_ideas/architecture.md) for full deployment details.
 
 ## Tests
@@ -78,4 +80,4 @@ Parity tests compare API output against Streamlit-equivalent inputs.
 | `sdr-api/` | FastAPI wrapper |
 | `sdr-web/` | Next.js frontend |
 | `new_dev_ideas/` | Design docs and HTML mockup |
-| `docs/` | Stakeholder materials |
+| `docs/` | Stakeholder materials, [model sync & Railway deploy](docs/MODEL_SYNC.md) |

@@ -6,7 +6,7 @@ import {
   formatReproducibilityLines,
   MODEL_VERSION,
 } from "./model-metadata";
-import { buildCompareMetricRows, buildCompareVerdict } from "./compare-summary";
+import { buildCompareMetricSections, buildCompareVerdict } from "./compare-summary";
 import { createTranslate, Locale } from "./i18n";
 import { buildExecutiveSummary } from "./results-summary";
 import { CompareResponse, Scenario, ScenarioResult } from "./scenarios";
@@ -46,8 +46,7 @@ function addKpiBlock(doc: jsPDF, result: ScenarioResult, y: number): number {
   const { summary } = result;
   const rows = [
     ["Maternal deaths averted", summary.maternal_deaths_averted.toLocaleString(undefined, { maximumFractionDigits: 0 })],
-    ["DALYs averted", summary.dalys_averted.toLocaleString(undefined, { maximumFractionDigits: 0 })],
-    ["Cost per DALY averted", `$${summary.cost_per_daly_averted_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`],
+    ["Severe outcomes averted", summary.severe_maternal_outcomes_averted.toLocaleString(undefined, { maximumFractionDigits: 0 })],
     ["Total intervention cost", `$${summary.cumulative_cost_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`],
   ];
 
@@ -136,7 +135,7 @@ export async function exportScenarioResultsPdf(
     y = addWrappedText(doc, `• ${bullet}`, MARGIN, y, CONTENT_W, 5);
   });
   y += 2;
-  y = addWrappedText(doc, `Verdict: ${exec.verdict}`, MARGIN, y, CONTENT_W, 5);
+  y = addWrappedText(doc, `Tags: ${exec.verdictTags.join(" · ")}`, MARGIN, y, CONTENT_W, 5);
   y = addWrappedText(doc, `System: ${exec.systemNote}`, MARGIN, y, CONTENT_W, 5);
   y = addWrappedText(doc, `Caveat: ${exec.caveat}`, MARGIN, y, CONTENT_W, 4);
   y += 4;
@@ -223,21 +222,18 @@ export async function exportComparisonResultsPdf(
   }
 
   if (data.result_a && data.result_b) {
-    const rows = buildCompareMetricRows(
+    const sections = buildCompareMetricSections(
       data.result_a,
       data.result_b,
       data.scenario_a.name,
       data.scenario_b.name,
+      data.scenario_a.county,
       t
     );
-    const verdict = buildCompareVerdict(data, rows, t);
+    const verdict = buildCompareVerdict(data, sections, t);
     y = addSectionHeading(doc, "Decision summary", y);
     doc.setFontSize(10);
     y = addWrappedText(doc, verdict.headline, MARGIN, y, CONTENT_W, 5);
-    y += 2;
-    verdict.bullets.forEach((bullet) => {
-      y = addWrappedText(doc, `• ${bullet}`, MARGIN, y, CONTENT_W, 4);
-    });
     y += 4;
   }
 
@@ -252,8 +248,8 @@ export async function exportComparisonResultsPdf(
     doc.setFontSize(10);
     const deltaRows = [
       ["Maternal deaths averted", data.deltas.maternal_deaths_averted?.diff],
-      ["DALYs averted", data.deltas.dalys_averted?.diff],
-      ["Cost per DALY averted", data.deltas.cost_per_daly_averted_usd?.diff],
+      ["Severe outcomes averted", data.deltas.severe_maternal_outcomes_averted?.diff],
+      ["Total intervention cost", data.deltas.cumulative_cost_usd?.diff],
     ].filter(([, v]) => v !== undefined) as [string, number][];
 
     deltaRows.forEach(([label, diff]) => {

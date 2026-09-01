@@ -5,6 +5,11 @@ import { countyDisplayName } from "@/lib/counties";
 import { listActiveInterventions, INTERVENTION_LIBRARY } from "@/lib/interventions";
 import { Scenario } from "@/lib/scenarios";
 
+function formatIntensity(intensity: Scenario["hss"]["intensity"]): string {
+  if (intensity === "off") return "Off";
+  return intensity.charAt(0).toUpperCase() + intensity.slice(1);
+}
+
 interface Props {
   scenario: Scenario;
 }
@@ -39,6 +44,9 @@ export default function ScenarioAssumptionsBanner({ scenario }: Props) {
             ? t("assumptions.interventions", { list: labels })
             : t("assumptions.baselineOnly")}
         </li>
+        {scenario.hss.enabled && scenario.hss.intensity !== "off" && (
+          <li>{t("assumptions.intensity", { level: formatIntensity(scenario.hss.intensity) })}</li>
+        )}
       </ul>
     </div>
   );

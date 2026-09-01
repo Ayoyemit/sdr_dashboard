@@ -2,23 +2,21 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useMemo, useRef } from "react";
 import ResultsExportBar from "@/components/export/ResultsExportBar";
 import BackToLastComparisonLink from "@/components/BackToLastComparisonLink";
-import CountyScopeBanner from "@/components/results/CountyScopeBanner";
+import RunProgressPanel from "@/components/results/RunProgressPanel";
+import GeographyScopePanel from "@/components/results/GeographyScopePanel";
 import ScenarioAssumptionsBanner from "@/components/results/ScenarioAssumptionsBanner";
 import ExecutiveSummary from "@/components/results/ExecutiveSummary";
 import MethodsLimitations from "@/components/results/MethodsLimitations";
 import BudgetLens from "@/components/results/BudgetLens";
-import ViewModeToggle from "@/components/results/ViewModeToggle";
-import IndicatorsDrawer from "@/components/IndicatorsDrawer";
 import ResultsStories from "@/components/stories/ResultsStories";
-import { pollRun } from "@/lib/api";
-import { getDefaultSelectedIndicators, getEssentialIndicators } from "@/lib/indicators";
-import { getCachedRunResult, saveLastRun } from "@/lib/last-run-storage";
+import { useRunPoller } from "@/hooks/useRunPoller";
+import { getEssentialIndicators } from "@/lib/indicators";
 import { useLocale } from "@/components/i18n/LocaleProvider";
-import { buildExecutiveSummary, ResultsViewMode } from "@/lib/results-summary";
-import { DEFAULT_SCENARIO, Scenario, ScenarioResult } from "@/lib/scenarios";
+import { buildExecutiveSummary } from "@/lib/results-summary";
+import { DEFAULT_SCENARIO } from "@/lib/scenarios";
 import { scenarioFromURLParams, scenarioToSearchParams } from "@/lib/url-state";
 
 function ResultsContent() {
@@ -26,87 +24,39 @@ function ResultsContent() {
   const searchParams = useSearchParams();
   const runId = searchParams.get("run_id");
   const exportScopeRef = useRef<HTMLDivElement>(null);
-  const [scenario, setScenario] = useState<Scenario | null>(null);
-  const [result, setResult] = useState<ScenarioResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [sessionOnly, setSessionOnly] = useState(false);
-  const [viewMode, setViewMode] = useState<ResultsViewMode>("policy");
-  const [selectedIndicators, setSelectedIndicators] = useState<Set<string>>(new Set());
+  const urlScenario = useMemo(
+    () => scenarioFromURLParams(searchParams.get("s")),
+    [searchParams]
+  );
 
-  useEffect(() => {
-    const urlScenario = scenarioFromURLParams(searchParams.get("s"));
-    if (urlScenario) setScenario(urlScenario);
+  const { loading, scenario, result, error, estimatedSecondsRemaining, pollCount } = useRunPoller(
+    runId,
+    urlScenario
+  );
 
-    if (!runId) {
-      setError("No run ID found. Please run a simulation from the Design page.");
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    const cached = getCachedRunResult(runId);
-
-    if (cached) {
-      setResult(cached.result);
-      setScenario(cached.scenario);
-      setSelectedIndicators(getDefaultSelectedIndicators(cached.scenario));
-      setSessionOnly(true);
-      setLoading(false);
-    }
-
-    pollRun(runId)
-      .then((response) => {
-        if (cancelled) return;
-        if (response.result) {
-          setResult(response.result);
-          const sc = response.scenario;
-          setScenario(sc);
-          setSelectedIndicators(getDefaultSelectedIndicators(sc));
-          saveLastRun(runId, sc, response.result);
-          setSessionOnly(false);
-          setError(null);
-        } else if (!cached) {
-          setError(
-            response.error_message || "Result not available. It may have expired — please re-run."
-          );
-        }
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        if (!cached) {
-          setError(e instanceof Error ? e.message : "Failed to load results");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [runId, searchParams]);
+  const displayIndicators = useMemo(
+    () => (scenario ? getEssentialIndicators(scenario) : new Set<string>()),
+    [scenario]
+  );
 
   const executiveSummary = useMemo(
     () => (result && scenario ? buildExecutiveSummary(scenario, result, t, locale) : null),
     [scenario, result, t, locale]
   );
 
-  const displayIndicators = useMemo(() => {
-    if (!scenario) return selectedIndicators;
-    if (viewMode === "policy") return getEssentialIndicators(scenario);
-    return selectedIndicators;
-  }, [viewMode, scenario, selectedIndicators]);
-
   const designHref = useMemo(() => {
-    const params = scenarioToSearchParams(scenario ?? DEFAULT_SCENARIO);
+    const params = scenarioToSearchParams(scenario ?? urlScenario ?? DEFAULT_SCENARIO);
     return `/design?${params.toString()}`;
-  }, [scenario]);
+  }, [scenario, urlScenario]);
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-16 text-center">
-        <p className="text-ink-muted">{t("common.loading")}</p>
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-16">
+        <RunProgressPanel
+          scenario={scenario ?? urlScenario}
+          estimatedSecondsRemaining={estimatedSecondsRemaining}
+          pollCount={pollCount}
+        />
       </div>
     );
   }
@@ -128,11 +78,6 @@ function ResultsContent() {
         <div className="min-w-0">
           <div className="flex items-center gap-3 mb-2 flex-wrap">
             <span className="text-[11px] tracking-[0.2em] text-accent uppercase">{t("results.step")}</span>
-            {sessionOnly && (
-              <span className="text-[11px] px-2 py-0.5 bg-warning/15 text-warning rounded-md">
-                {t("results.sessionSaved")}
-              </span>
-            )}
           </div>
           <h1 className="font-display text-2xl sm:text-3xl mb-1">{t("results.title")}</h1>
           <p className="text-ink-muted text-sm">
@@ -144,7 +89,12 @@ function ResultsContent() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 flex-wrap items-stretch sm:items-start sm:justify-end w-full sm:w-auto">
-          <BackToLastComparisonLink />
+          <Link
+            href="/compare"
+            className="min-h-[44px] inline-flex items-center justify-center px-4 py-2 bg-ink text-paper rounded-md text-sm text-center font-medium"
+          >
+            {t("common.compareScenarios")}
+          </Link>
           <ResultsExportBar
             mode="scenario"
             scenario={scenario}
@@ -154,60 +104,45 @@ function ResultsContent() {
           />
           <Link
             href={designHref}
-            className="px-4 py-2 border border-border rounded-md text-sm hover:bg-paper-deep"
+            className="min-h-[44px] inline-flex items-center justify-center px-4 py-2 border border-border rounded-md text-sm hover:bg-paper-deep"
           >
             {t("common.adjustScenario")}
           </Link>
         </div>
       </div>
 
-      <div className="mb-6 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
-        <ViewModeToggle mode={viewMode} onChange={setViewMode} />
-        {viewMode === "analyst" && (
-          <p className="text-xs text-ink-muted">{t("results.analystHint")}</p>
-        )}
-      </div>
-
       <ScenarioAssumptionsBanner scenario={scenario} />
 
-      <CountyScopeBanner countyId={scenario.county} />
-
-      {sessionOnly && (
-        <div className="mb-6 text-sm bg-warning/10 border border-warning/30 rounded-lg px-4 py-3 text-ink-soft">
-          {t("results.sessionSavedDetail")}
-        </div>
-      )}
+      <GeographyScopePanel scenario={scenario} />
 
       <ExecutiveSummary summary={executiveSummary} result={result} />
 
-      <BudgetLens
-        mode="single"
-        label={scenario.name}
-        costUsd={result.summary.cumulative_cost_usd}
-      />
+      <BudgetLens mode="single" label={scenario.name} costUsd={result.summary.cumulative_cost_usd} />
 
       <MethodsLimitations scenario={scenario} result={result} runId={runId} />
 
-      {viewMode === "analyst" && (
-        <IndicatorsDrawer
-          scenario={scenario}
-          selected={selectedIndicators}
-          onChange={setSelectedIndicators}
-        />
-      )}
-
       <div ref={exportScopeRef}>
-        <ResultsStories result={result} selectedIndicators={displayIndicators} />
+        <ResultsStories
+          result={result}
+          selectedIndicators={displayIndicators}
+          countyId={scenario.county}
+        />
       </div>
 
       <div className="mt-12 flex flex-col sm:flex-row gap-3 sm:gap-4 flex-wrap items-stretch sm:items-center">
-        <Link href={designHref} className="min-h-[44px] inline-flex items-center justify-center px-6 py-3 border border-border rounded-md hover:bg-paper-deep text-center">
+        <Link
+          href="/compare"
+          className="min-h-[44px] inline-flex items-center justify-center px-6 py-3 bg-ink text-paper rounded-md text-center font-medium"
+        >
+          {t("common.compareScenarios")} →
+        </Link>
+        <Link
+          href={designHref}
+          className="min-h-[44px] inline-flex items-center justify-center px-6 py-3 border border-border rounded-md hover:bg-paper-deep text-center"
+        >
           ← {t("common.adjustScenario")}
         </Link>
         <BackToLastComparisonLink variant="text" />
-        <Link href="/compare" className="min-h-[44px] inline-flex items-center justify-center px-6 py-3 bg-ink text-paper rounded-md text-center">
-          {t("common.newComparison")} →
-        </Link>
       </div>
     </div>
   );

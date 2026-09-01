@@ -5,6 +5,8 @@ export type SupportedCountyId = "kakamega" | "kisii" | "makueni" | "mombasa";
 export interface Scenario {
   name: string;
   county: SupportedCountyId;
+  /** UI-only intensity levels persisted in URL state; stripped before API calls when needed */
+  ui_levels?: Partial<Record<string, string>>;
   hss: {
     enabled: boolean;
     intensity: HSSIntensity;
@@ -23,6 +25,8 @@ export interface Scenario {
     antibiotics?: boolean;
     oxytocin?: boolean;
     ultrasound?: boolean;
+    intrapartum_sensors?: boolean;
+    intrapartum_sensors_ai?: boolean;
   };
   community: {
     enabled: boolean;
@@ -51,6 +55,10 @@ export interface Scenario {
       enabled: boolean;
       emt_participation?: number;
     };
+    blood_tracking?: {
+      enabled: boolean;
+      level?: "current" | "moderate" | "intensive";
+    };
   };
   run: {
     implementation_years: number;
@@ -71,6 +79,7 @@ export const DEFAULT_SCENARIO: Scenario = {
     fqa: { enabled: false, implementation: "low", influence_on_pulse: "low" },
     pulse: { enabled: false, implementation: "low" },
     referral_emt: { enabled: false },
+    blood_tracking: { enabled: false, level: "current" },
   },
   run: { implementation_years: 3, maintenance_years: 1, mode: "quick" },
 };
@@ -132,6 +141,24 @@ export interface ScenarioResult {
       ctg_equipment_ratio: { baseline: number[]; intervention: number[] };
       nurse_staff_ratio: { baseline: number[]; intervention: number[] };
       surgical_staff_ratio: { baseline: number[]; intervention: number[] };
+    };
+    mortality_by_facility_level?: {
+      baseline: { home: number[]; l23: number[]; l4: number[]; l5: number[] };
+      intervention: { home: number[]; l23: number[]; l4: number[]; l5: number[] };
+    };
+    facility_level_end_of_run?: {
+      anc_rate: {
+        baseline: { home: number; l23: number; l4: number; l5: number };
+        intervention: { home: number; l23: number; l4: number; l5: number };
+      };
+      cs_rate: {
+        baseline: { home: number; l23: number; l4: number; l5: number };
+        intervention: { home: number; l23: number; l4: number; l5: number };
+      };
+      normal_referral: {
+        baseline: { home: number; l23: number; l4: number; l5: number };
+        intervention: { home: number; l23: number; l4: number; l5: number };
+      };
     };
   };
   indicators_available: Array<{

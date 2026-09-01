@@ -26,6 +26,7 @@ import {
   getLastComparisonData,
   saveLastComparison,
 } from "@/lib/compare-storage";
+import { formatKakamegaCostUsd } from "@/lib/run-metrics";
 import { chartMarginsWithLegend, chartTooltipProps, getChartLayout, xAxisLabel, yAxisLabel } from "@/lib/chart-labels";
 import { useIsMobile } from "@/lib/use-breakpoint";
 
@@ -94,7 +95,7 @@ function CompareResultsContent() {
       <div className="px-4 md:px-8 py-8 text-center">
         <p className="text-negative mb-4">Comparison not found or expired.</p>
         <Link href="/compare" className="text-accent underline">
-          {t("common.newComparison")}
+          {t("common.compareScenarios")}
         </Link>
       </div>
     );
@@ -130,14 +131,14 @@ function CompareResultsContent() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto">
-          <ResultsExportBar mode="compare" data={data} scopeRef={exportScopeRef} />
-          <BackToLastResultsLink />
           <Link
             href="/compare"
-            className="min-h-[44px] inline-flex items-center justify-center px-4 py-2 bg-ink text-paper rounded-md text-sm text-center"
+            className="min-h-[44px] inline-flex items-center justify-center px-4 py-2 bg-ink text-paper rounded-md text-sm text-center font-medium"
           >
-            {t("compare.adjust")}
+            {t("common.compareScenarios")}
           </Link>
+          <ResultsExportBar mode="compare" data={data} scopeRef={exportScopeRef} />
+          <BackToLastResultsLink />
         </div>
       </div>
 
@@ -153,17 +154,7 @@ function CompareResultsContent() {
         </p>
       )}
 
-      <CompareSummaryTable data={data} />
-
-      <BudgetLens
-        mode="compare"
-        labelA={scenario_a.name}
-        labelB={scenario_b.name}
-        costAUsd={a.summary.cumulative_cost_usd}
-        costBUsd={b.summary.cumulative_cost_usd}
-      />
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <KPITile
           label={t("compare.deathsA")}
           value={a.summary.maternal_deaths_averted.toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -176,14 +167,35 @@ function CompareResultsContent() {
           accent
         />
         <KPITile
-          label={t("compare.costDalyA")}
-          value={`$${a.summary.cost_per_daly_averted_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          label={t("compare.totalCostA")}
+          value={formatKakamegaCostUsd(
+            a.summary.cumulative_cost_usd,
+            scenario_a.county,
+            t("exec.costDalyNa")
+          )}
+          sub={scenario_a.name}
         />
         <KPITile
-          label={t("compare.costDalyB")}
-          value={`$${b.summary.cost_per_daly_averted_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          label={t("compare.totalCostB")}
+          value={formatKakamegaCostUsd(
+            b.summary.cumulative_cost_usd,
+            scenario_b.county,
+            t("exec.costDalyNa")
+          )}
+          sub={scenario_b.name}
+          accent
         />
       </div>
+
+      <CompareSummaryTable data={data} />
+
+      <BudgetLens
+        mode="compare"
+        labelA={scenario_a.name}
+        labelB={scenario_b.name}
+        costAUsd={a.summary.cumulative_cost_usd}
+        costBUsd={b.summary.cumulative_cost_usd}
+      />
 
       <div ref={exportScopeRef}>
         <section className="bg-card border border-border rounded-xl p-4 md:p-8 mb-12">
@@ -272,7 +284,7 @@ function CompareResultsContent() {
       <div className="flex flex-wrap items-center gap-4">
         <BackToLastResultsLink variant="text" />
         <Link href="/compare" className="text-accent underline">
-          {t("compare.adjustArrow")}
+          {t("common.compareScenarios")} →
         </Link>
       </div>
     </div>

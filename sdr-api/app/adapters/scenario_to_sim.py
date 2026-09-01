@@ -23,6 +23,7 @@ _get_fqa_pulse_modifier_options = None
 
 FQA_FIDELITY_OVERRIDE = {"Moderate": 0.5, "High": 0.95}
 PULSE_FIDELITY_OVERRIDE = {"Moderate": 0.5, "High": 0.95}
+BLOOD_TRACKING_LEVEL = {"current": 0.25, "moderate": 0.5, "intensive": 0.95}
 
 
 def _ensure_sim_imports():
@@ -127,9 +128,9 @@ def _apply_hss(req: ScenarioRequest, i_flags: dict, i_hss: dict, slider_params: 
     return warnings
 
 
-def _apply_treatments(req: ScenarioRequest, i_flags: dict, i_s: dict) -> None:
+def _apply_treatments(req: ScenarioRequest, i_flags: dict, i_s: dict, i_e: dict) -> None:
     t = req.treatments
-    if not t.enabled:
+    if not t.enabled and not t.intrapartum_sensors:
         return
     mapping = [
         ("pph_bundle", "flag_pph_bundle", "pph_bundle"),
@@ -145,63 +146,79 @@ def _apply_treatments(req: ScenarioRequest, i_flags: dict, i_s: dict) -> None:
     if t.ultrasound:
         i_flags["flag_us"] = 1
         i_s["US"] = 1.0
+    if t.intrapartum_sensors:
+        i_flags["flag_intrasensor"] = 1
+        if t.intrapartum_sensors_ai:
+            i_flags["flag_sensor_ai"] = 1
+            i_e["sens_sensor"] = 0.95
+            i_e["spec_sensor"] = 0.95
+        else:
+            i_flags["flag_sensor_ai"] = 0
 
 
 def _apply_community(req: ScenarioRequest, i_flags: dict, i_hss: dict) -> list[str]:
     warnings: list[str] = []
     c = req.community
     county = req.county or "kakamega"
-    if not c.enabled:
+    if not c.enabled and not c.blood_tracking.enabled:
         return warnings
 
-    if c.prompts.enabled:
-        i_flags["flag_PROMPTS"] = 1
-        if c.prompts.adoption is not None:
-            i_hss["adoption_prompts"] = c.prompts.adoption
-        if c.prompts.chv_engagement is not None:
-            i_hss["chv_engagement"] = c.prompts.chv_engagement
-        if c.prompts.intervention_fidelity is not None:
-            i_hss["intervention_fidelity"] = c.prompts.intervention_fidelity
-            i_hss["prompts_effect"] = c.prompts.intervention_fidelity
+    if c.enabled:
+        if c.prompts.enabled:
+            i_flags["flag_PROMPTS"] = 1
+            if c.prompts.adoption is not None:
+                i_hss["adoption_prompts"] = c.prompts.adoption
+            if c.prompts.chv_engagement is not None:
+                i_hss["chv_engagement"] = c.prompts.chv_engagement
+            if c.prompts.intervention_fidelity is not None:
+                i_hss["intervention_fidelity"] = c.prompts.intervention_fidelity
+                i_hss["prompts_effect"] = c.prompts.intervention_fidelity
 
-    if c.mentors.enabled:
-        i_flags["flag_MENTOR"] = 1
-        if c.mentors.adoption is not None:
-            i_hss["mentor_adoption"] = c.mentors.adoption
-        if c.mentors.attendance is not None:
-            i_hss["mentor_attendance"] = c.mentors.attendance
-        if c.mentors.fidelity is not None:
-            i_hss["mentor_fidelity"] = c.mentors.fidelity
+        if c.mentors.enabled:
+            i_flags["flag_MENTOR"] = 1
+            if c.mentors.adoption is not None:
+                i_hss["mentor_adoption"] = c.mentors.adoption
+            if c.mentors.attendance is not None:
+                i_hss["mentor_attendance"] = c.mentors.attendance
+            if c.mentors.fidelity is not None:
+                i_hss["mentor_fidelity"] = c.mentors.fidelity
 
-    if c.pulse.enabled:
-        i_flags["flag_pulse"] = 1
-        pulse_key = _fidelity_key(c.pulse.implementation)
-        pulse_index = _get_pulse_implementation_index(pulse_key, county)
-        i_hss["pulse_implementation_index"] = pulse_index
+        if c.pulse.enabled:
+            i_flags["flag_pulse"] = 1
+            pulse_key = _fidelity_key(c.pulse.implementation)
+            pulse_index = _get_pulse_implementation_index(pulse_key, county)
+            i_hss["pulse_implementation_index"] = pulse_index
+        else:
+            i_hss["pulse_implementation_index"] = 0.0
+
+        if c.fqa.enabled:
+            i_flags["flag_fqa"] = 1
+            fqa_key = _fidelity_key(c.fqa.implementation)
+            fqa_index = _get_fqa_implementation_index(fqa_key, county)
+            i_hss["fqa_implementation_index"] = fqa_index
+        else:
+            i_hss["fqa_implementation_index"] = 0.0
+
+        if c.fqa.enabled or c.pulse.enabled:
+            modifier_options = _get_fqa_pulse_modifier_options()
+            modifier_level = _modifier_level(c.fqa.influence_on_pulse)
+            i_hss["fqa_pulse_modifier_level"] = modifier_level
+            i_hss["fqa_pulse_modifier"] = modifier_options[modifier_level]
+
+        if c.referral_emt.enabled:
+            i_flags["flag_emt"] = 1
+            participation = c.referral_emt.emt_participation if c.referral_emt.emt_participation is not None else 1.0
+            i_hss["emt_participation"] = participation
+            i_hss["emt_intensity"] = participation
+        else:
+            i_hss["emt_intensity"] = 0.0
+
+    if c.blood_tracking.enabled:
+        i_flags["flag_blood"] = 1
+        i_flags["flag_blood_tracking"] = 1
+        i_hss["blood_adoption"] = BLOOD_TRACKING_LEVEL.get(c.blood_tracking.level, 0.25)
     else:
-        i_hss["pulse_implementation_index"] = 0.0
-
-    if c.fqa.enabled:
-        i_flags["flag_fqa"] = 1
-        fqa_key = _fidelity_key(c.fqa.implementation)
-        fqa_index = _get_fqa_implementation_index(fqa_key, county)
-        i_hss["fqa_implementation_index"] = fqa_index
-    else:
-        i_hss["fqa_implementation_index"] = 0.0
-
-    if c.fqa.enabled or c.pulse.enabled:
-        modifier_options = _get_fqa_pulse_modifier_options()
-        modifier_level = _modifier_level(c.fqa.influence_on_pulse)
-        i_hss["fqa_pulse_modifier_level"] = modifier_level
-        i_hss["fqa_pulse_modifier"] = modifier_options[modifier_level]
-
-    if c.referral_emt.enabled:
-        i_flags["flag_emt"] = 1
-        participation = c.referral_emt.emt_participation if c.referral_emt.emt_participation is not None else 1.0
-        i_hss["emt_participation"] = participation
-        i_hss["emt_intensity"] = participation
-    else:
-        i_hss["emt_intensity"] = 0.0
+        i_hss["blood_adoption"] = 0.0
 
     return warnings
 
@@ -241,7 +258,7 @@ def scenario_to_sim_inputs(req: ScenarioRequest) -> tuple[dict, dict, dict, dict
 
     warnings: list[str] = []
     warnings.extend(_apply_hss(req, i_flags, i_hss, slider_params))
-    _apply_treatments(req, i_flags, i_s)
+    _apply_treatments(req, i_flags, i_s, i_e)
     warnings.extend(_apply_community(req, i_flags, i_hss))
 
     return i_flags, i_e, i_s, i_hss, warnings
@@ -273,6 +290,15 @@ def build_applied_interventions(req: ScenarioRequest) -> list[dict[str, Any]]:
                 items.append(
                     {"pillar": "treatments", "name": label, "is_wired_in_model": True}
                 )
+    if req.treatments.intrapartum_sensors:
+        items.append(
+            {
+                "pillar": "treatments",
+                "name": "Intrapartum sensors",
+                "intensity": "AI-assisted" if req.treatments.intrapartum_sensors_ai else "Standard",
+                "is_wired_in_model": True,
+            }
+        )
     if req.community.enabled:
         if req.community.prompts.enabled:
             items.append(
@@ -294,4 +320,13 @@ def build_applied_interventions(req: ScenarioRequest) -> list[dict[str, Any]]:
             items.append(
                 {"pillar": "community", "name": "Referral / EMT", "is_wired_in_model": True}
             )
+    if req.community.blood_tracking.enabled:
+        items.append(
+            {
+                "pillar": "community",
+                "name": "Blood tracking",
+                "intensity": req.community.blood_tracking.level.title(),
+                "is_wired_in_model": True,
+            }
+        )
     return items

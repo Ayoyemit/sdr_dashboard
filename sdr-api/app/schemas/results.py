@@ -45,6 +45,36 @@ class DeliveryLocationTimeseries(BaseModel):
     intervention: DeliveryLocationSeries
 
 
+class FacilityLevelSnapshot(BaseModel):
+    home: float
+    l23: float
+    l4: float
+    l5: float
+
+
+class FacilityLevelSeries(BaseModel):
+    home: list[float]
+    l23: list[float]
+    l4: list[float]
+    l5: list[float]
+
+
+class MortalityByFacilityLevelTimeseries(BaseModel):
+    baseline: FacilityLevelSeries
+    intervention: FacilityLevelSeries
+
+
+class FacilityLevelRateBundle(BaseModel):
+    baseline: FacilityLevelSnapshot
+    intervention: FacilityLevelSnapshot
+
+
+class FacilityLevelEndOfRun(BaseModel):
+    anc_rate: FacilityLevelRateBundle
+    cs_rate: FacilityLevelRateBundle
+    normal_referral: FacilityLevelRateBundle
+
+
 class FacilityCapacitySeries(BaseModel):
     baseline: list[float]
     intervention: list[float]
@@ -84,6 +114,8 @@ class TimeseriesResult(BaseModel):
     facility_capacity_ratio: FacilityCapacitySeries
     cost_per_daly: CostPerDalySeries
     indicator_series: IndicatorTimeseriesBundle
+    mortality_by_facility_level: Optional[MortalityByFacilityLevelTimeseries] = None
+    facility_level_end_of_run: Optional[FacilityLevelEndOfRun] = None
 
 
 class IndicatorAvailable(BaseModel):

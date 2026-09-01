@@ -47,9 +47,14 @@ export async function waitForRun(runId: string, maxAttempts = 120): Promise<RunR
     if (response.status === "complete" || response.status === "failed") {
       return response;
     }
-    await new Promise((r) => setTimeout(r, 5000));
+    const delayMs = i < 20 ? 2000 : 5000;
+    await new Promise((r) => setTimeout(r, delayMs));
   }
   throw new Error("Simulation timed out. Please try Quick mode or try again later.");
+}
+
+export async function startScenarioRun(scenario: Scenario): Promise<RunResponse> {
+  return runScenario(scenario);
 }
 
 export async function compareScenarios(

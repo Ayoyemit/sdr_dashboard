@@ -18,7 +18,7 @@ export default function BackToLastComparisonLink({
   const { t } = useLocale();
   const pathname = usePathname();
   const [href, setHref] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
+  const [label, setLabel] = useState("");
 
   useEffect(() => {
     const ref = getLastComparisonRef();
@@ -30,16 +30,14 @@ export default function BackToLastComparisonLink({
     }
 
     setHref(compareHref);
-    setTitle(ref.label);
-  }, [pathname]);
+    setLabel(t("common.viewLastComparison", { label: ref.label }));
+  }, [pathname, t]);
 
   if (!href) return null;
 
-  const label = t("common.backToComparison");
-
   if (variant === "text") {
     return (
-      <Link href={href} className={`text-accent underline ${className}`} title={title}>
+      <Link href={href} className={`text-accent underline ${className}`} title={label}>
         ← {label}
       </Link>
     );
@@ -49,7 +47,7 @@ export default function BackToLastComparisonLink({
     <Link
       href={href}
       className={`px-4 py-2 border border-border rounded-md text-sm hover:bg-paper-deep ${className}`}
-      title={title}
+      title={label}
     >
       ← {label}
     </Link>

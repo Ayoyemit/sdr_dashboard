@@ -13,7 +13,9 @@ interface WorkflowStep {
 
 interface Props {
   compareHref?: string;
+  aboutHref?: string;
   showCompare?: boolean;
+  showCountySwitcher?: boolean;
   onShare?: () => void;
   workflowSteps?: WorkflowStep[];
   activeStepHref?: string;
@@ -21,7 +23,9 @@ interface Props {
 
 export default function NavOverflowMenu({
   compareHref,
+  aboutHref = "/about",
   showCompare,
+  showCountySwitcher = true,
   onShare,
   workflowSteps,
   activeStepHref,
@@ -86,29 +90,35 @@ export default function NavOverflowMenu({
           <div className="px-3 py-2 text-[10px] uppercase tracking-[0.15em] text-ink-muted border-b border-border-soft">
             {t("nav.countyScope")}
           </div>
-          {COUNTIES.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              role="menuitem"
-              className={`w-full text-left px-3 py-2.5 text-sm min-h-[44px] flex justify-between items-center gap-2 hover:bg-paper-deep/60 ${
-                c.id === countyId ? "bg-paper-deep/40 font-medium" : ""
-              }`}
-              onClick={() => {
-                setCountyId(c.id);
-                setOpen(false);
-              }}
-            >
-              <span>{c.name}</span>
-              {c.calibrated ? (
-                <span className="text-[10px] text-intervention">{t("start.calibrated")}</span>
-              ) : (
-                <span className="text-[9px] text-ink-muted italic">
-                  {t("start.comingSoonShort", { when: c.available ?? "soon" })}
-                </span>
-              )}
-            </button>
-          ))}
+          {showCountySwitcher ? (
+            COUNTIES.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                role="menuitem"
+                className={`w-full text-left px-3 py-2.5 text-sm min-h-[44px] flex justify-between items-center gap-2 hover:bg-paper-deep/60 ${
+                  c.id === countyId ? "bg-paper-deep/40 font-medium" : ""
+                }`}
+                onClick={() => {
+                  setCountyId(c.id);
+                  setOpen(false);
+                }}
+              >
+                <span>{c.name}</span>
+                {c.calibrated ? (
+                  <span className="text-[10px] text-intervention">{t("start.calibrated")}</span>
+                ) : (
+                  <span className="text-[9px] text-ink-muted italic">
+                    {t("start.comingSoonShort", { when: c.available ?? "soon" })}
+                  </span>
+                )}
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-2.5 text-xs text-ink-muted leading-relaxed">
+              {t("geography.resultsHint")}
+            </div>
+          )}
 
           <div className="border-t border-border-soft my-1" />
 
@@ -123,7 +133,7 @@ export default function NavOverflowMenu({
             </Link>
           )}
           <Link
-            href="/about"
+            href={aboutHref}
             role="menuitem"
             className="block px-3 py-2.5 text-sm min-h-[44px] flex items-center hover:bg-paper-deep/60"
             onClick={() => setOpen(false)}

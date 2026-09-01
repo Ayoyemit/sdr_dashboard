@@ -10,3 +10,4 @@ sdr-web/.next/
 *.pyc
 .env
 .env.local
+.tmp-ppt-images/

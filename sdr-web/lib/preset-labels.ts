@@ -1,11 +1,14 @@
 import { TranslateFn } from "./i18n";
 
 const PRESET_I18N_KEY: Record<string, string> = {
-  "status-quo": "statusQuo",
   "hss-intensive": "hssIntensive",
   momish: "momish",
   combined: "combined",
+  custom: "custom",
 };
+
+/** Display order for start page preset cards */
+export const PRESET_DISPLAY_ORDER = ["combined", "hss-intensive", "momish", "custom"] as const;
 
 export interface PresetDisplay {
   name: string;

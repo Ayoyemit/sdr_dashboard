@@ -1,4 +1,5 @@
 import { Scenario } from "./scenarios";
+import { getLibraryItem, getMomishLevel, getSingleLevel } from "./intervention-config";
 
 export interface ScenarioPackageItem {
   label: string;
@@ -6,52 +7,56 @@ export interface ScenarioPackageItem {
   wired: boolean;
 }
 
+const SINGLE_KEYS = [
+  "pph_bundle",
+  "iv_iron",
+  "mgso4",
+  "antibiotics",
+  "oxytocin",
+  "ultrasound",
+  "intrapartum_sensors",
+] as const;
+
+const MOMISH_KEYS = [
+  "prompts",
+  "mentors",
+  "fqa",
+  "pulse",
+  "referral_emt",
+  "blood_tracking",
+] as const;
+
 export function getScenarioPackageItems(scenario: Scenario): ScenarioPackageItem[] {
   const items: ScenarioPackageItem[] = [];
 
-  if (scenario.hss.enabled) {
+  for (const id of MOMISH_KEYS) {
+    const level = getMomishLevel(scenario, id);
+    if (level !== "off") {
+      items.push({
+        label: getLibraryItem(id).name,
+        detail: level,
+        wired: getLibraryItem(id).wired === "wired",
+      });
+    }
+  }
+
+  for (const id of SINGLE_KEYS) {
+    const level = getSingleLevel(scenario, id);
+    if (level !== "off") {
+      items.push({
+        label: getLibraryItem(id).name,
+        detail: level === "on" ? "on" : level,
+        wired: getLibraryItem(id).wired === "wired",
+      });
+    }
+  }
+
+  if (scenario.hss.enabled && scenario.hss.intensity !== "off") {
     items.push({
       label: "Health System Strengthening",
       detail: scenario.hss.intensity,
       wired: true,
     });
-  }
-
-  if (scenario.treatments.enabled) {
-    const tx = (
-      [
-        ["pph_bundle", "PPH bundle"],
-        ["iv_iron", "IV iron"],
-        ["mgso4", "MgSO4"],
-        ["antibiotics", "Antibiotics"],
-        ["oxytocin", "Oxytocin"],
-        ["ultrasound", "Ultrasound"],
-      ] as const
-    ).filter(([key]) => scenario.treatments[key]);
-
-    if (tx.length === 0) {
-      items.push({ label: "Treatments", detail: "enabled", wired: true });
-    } else {
-      tx.forEach(([, label]) => items.push({ label, wired: true }));
-    }
-  }
-
-  if (scenario.community.enabled) {
-    if (scenario.community.prompts.enabled) {
-      items.push({ label: "PROMPTS", wired: true });
-    }
-    if (scenario.community.mentors.enabled) {
-      items.push({ label: "MENTORS", wired: true });
-    }
-    if (scenario.community.fqa.enabled) {
-      items.push({ label: "FQA", detail: "UI only", wired: false });
-    }
-    if (scenario.community.pulse.enabled) {
-      items.push({ label: "PULSE", detail: "UI only", wired: false });
-    }
-    if (scenario.community.referral_emt.enabled) {
-      items.push({ label: "Referral / EMT", detail: "partial", wired: false });
-    }
   }
 
   if (items.length === 0) {

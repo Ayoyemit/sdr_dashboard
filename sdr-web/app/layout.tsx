@@ -15,8 +15,8 @@ const instrument = Instrument_Sans({
 });
 
 export const metadata = {
-  title: "Kenya Maternal Health Decision Tool",
-  description: "Design and compare maternal health scenarios across calibrated Kenya counties",
+  title: "SDR Decision Tool",
+  description: "Compare maternal health intervention scenarios across calibrated Kenya counties",
 };
 
 export const viewport = {

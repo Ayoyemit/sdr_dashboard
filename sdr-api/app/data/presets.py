@@ -17,7 +17,7 @@ HSS_INTENSIVE = ScenarioRequest(
 )
 
 MOMISH = ScenarioRequest(
-    name="Community engagement (MOMISH)",
+    name="System interventions (MOMISH)",
     hss={"enabled": False, "intensity": "off"},
     treatments={"enabled": False},
     community={
@@ -34,6 +34,8 @@ MOMISH = ScenarioRequest(
             "attendance": 0.8,
             "fidelity": 0.8,
         },
+        "fqa": {"enabled": True, "implementation": "high", "influence_on_pulse": "high"},
+        "pulse": {"enabled": True, "implementation": "high"},
     },
 )
 
@@ -58,39 +60,30 @@ COMBINED = ScenarioRequest(
 
 PRESETS = [
     {
-        "id": "status-quo",
-        "name": "Status quo",
-        "subtitle": "Baseline only",
-        "description": "Today's conditions projected forward.",
-        "scenario": STATUS_QUO,
-        "is_recommended": False,
+        "id": "combined",
+        "name": "Combined strategy",
+        "subtitle": "HSS Moderate, Single Interventions",
+        "description": "Moderate HSS with key single interventions.",
+        "scenario": COMBINED,
+        "is_recommended": True,
     },
     {
         "id": "hss-intensive",
         "name": "Health system strengthening",
-        "subtitle": "HSS · Intensive",
+        "subtitle": "Aggressive demand + matched supply",
         "description": "Aggressive demand-side investment with matched supply.",
         "scenario": HSS_INTENSIVE,
         "is_recommended": False,
     },
     {
         "id": "momish",
-        "name": "Community engagement (MOMISH)",
-        "subtitle": "PROMPTS · Full · CHVs strong",
-        "description": "PROMPTS full rollout with strong CHV engagement.",
+        "name": "System interventions (MOMISH)",
+        "subtitle": "PROMPTS, MENTORS, FQA, PULSE",
+        "description": "PROMPTS, MENTORS, FQA, and PULSE at high intensity.",
         "scenario": MOMISH,
         "is_recommended": False,
     },
-    {
-        "id": "combined",
-        "name": "Combined strategy",
-        "subtitle": "HSS · Treatments · MOMISH",
-        "description": "HSS Moderate + key treatments + partial MOMISH.",
-        "scenario": COMBINED,
-        "is_recommended": False,
-    },
 ]
-
 
 def get_presets_response() -> dict:
     return {

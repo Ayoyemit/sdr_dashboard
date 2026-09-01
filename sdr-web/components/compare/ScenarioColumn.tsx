@@ -4,13 +4,17 @@ import { useState } from "react";
 import InterventionCard from "@/components/compare/InterventionCard";
 import MobileSectionTabs from "@/components/responsive/MobileSectionTabs";
 import {
-  applyIntervention,
-  hasIntervention,
+  getLibraryItem,
+  getMomishLevel,
+  getSingleLevel,
   listActiveInterventions,
   removeIntervention,
   setHssIntensity,
+  setMomishLevel,
+  setSingleLevel,
 } from "@/lib/interventions";
-import { Scenario } from "@/lib/scenarios";
+import { HSSIntensity, Scenario } from "@/lib/scenarios";
+import { MomishLevel, SingleInterventionLevel } from "@/lib/intervention-config";
 
 type ColumnAccent = "a" | "b";
 
@@ -65,19 +69,40 @@ function ColumnInner({ accent, scenario, onChange }: Props) {
             No interventions yet — add from the library using + {accent === "a" ? "A" : "B"}
           </p>
         ) : (
-          activeIds.map((id) => (
-            <InterventionCard
-              key={id}
-              id={id}
-              hssIntensity={scenario.hss.intensity}
-              onIntensityChange={
-                id === "hss"
-                  ? (intensity) => onChange(setHssIntensity(scenario, intensity))
-                  : undefined
-              }
-              onRemove={() => onChange(removeIntervention(scenario, id))}
-            />
-          ))
+          activeIds.map((id) => {
+            const item = getLibraryItem(id);
+            return (
+              <InterventionCard
+                key={id}
+                id={id}
+                hssIntensity={scenario.hss.intensity}
+                singleLevel={
+                  item.group === "single"
+                    ? (getSingleLevel(scenario, id) as SingleInterventionLevel)
+                    : undefined
+                }
+                momishLevel={
+                  item.group === "momish" ? getMomishLevel(scenario, id) : undefined
+                }
+                onHssChange={
+                  id === "hss"
+                    ? (intensity: HSSIntensity) => onChange(setHssIntensity(scenario, intensity))
+                    : undefined
+                }
+                onSingleChange={
+                  item.group === "single"
+                    ? (level) => onChange(setSingleLevel(scenario, id, level))
+                    : undefined
+                }
+                onMomishChange={
+                  item.group === "momish"
+                    ? (level: MomishLevel) => onChange(setMomishLevel(scenario, id, level))
+                    : undefined
+                }
+                onRemove={() => onChange(removeIntervention(scenario, id))}
+              />
+            );
+          })
         )}
       </div>
     </div>
@@ -130,5 +155,3 @@ export function CompareScenarioColumns({
 export default function ScenarioColumn({ accent, scenario, onChange }: Props) {
   return <ColumnInner accent={accent} scenario={scenario} onChange={onChange} />;
 }
-
-export { applyIntervention, hasIntervention };

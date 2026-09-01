@@ -2,46 +2,50 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import PillSelector from "@/components/PillSelector";
+import DesignInterventionPillars from "@/components/design/DesignInterventionPillars";
 import ScenarioSummarySidebar, {
   ScenarioRunActions,
   ScenarioSummaryCompact,
 } from "@/components/design/ScenarioSummarySidebar";
+import GeographyPicker from "@/components/geography/GeographyPicker";
 import StickyActionBar from "@/components/responsive/StickyActionBar";
 import { useCounty } from "@/components/county/CountyProvider";
 import { useLocale } from "@/components/i18n/LocaleProvider";
-import { runScenario, waitForRun } from "@/lib/api";
-import { DEFAULT_SCENARIO, HSSIntensity, Scenario, SupportedCountyId } from "@/lib/scenarios";
-import { scenarioFromURLParams, scenarioToSearchParams } from "@/lib/url-state";
-
-const HSS_OPTIONS = [
-  { value: "off", label: "Off" },
-  { value: "light", label: "Light", hint: "60–69%" },
-  { value: "moderate", label: "Moderate", hint: "70–79%" },
-  { value: "intensive", label: "Intensive", hint: "80–95%" },
-];
+import { resultsHrefForRun, startRunForGeography } from "@/lib/geography-run";
+import { clearLastComparisonSession } from "@/lib/compare-storage";
+import { DEFAULT_SCENARIO, Scenario, SupportedCountyId } from "@/lib/scenarios";
+import { scenarioFromURLParams } from "@/lib/url-state";
 
 function DesignContent() {
   const { t } = useLocale();
-  const { countyId } = useCounty();
+  const { countyId, setCountyId } = useCounty();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [scenario, setScenario] = useState<Scenario>(DEFAULT_SCENARIO);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showTreatments, setShowTreatments] = useState(false);
-  const [showCommunity, setShowCommunity] = useState(false);
 
   useEffect(() => {
     const fromUrl = scenarioFromURLParams(searchParams.get("s"));
     if (fromUrl) {
-      setScenario({ ...fromUrl, county: countyId as SupportedCountyId });
-      setShowTreatments(fromUrl.treatments.enabled);
-      setShowCommunity(fromUrl.community.enabled);
-    } else {
-      setScenario((prev) => ({ ...prev, county: countyId as SupportedCountyId }));
+      setScenario(fromUrl);
+      setCountyId(fromUrl.county);
     }
-  }, [searchParams, countyId]);
+  }, [searchParams, setCountyId]);
+
+  useEffect(() => {
+    if (!searchParams.get("s")) {
+      setScenario((prev) => ({ ...prev, county: countyId }));
+    }
+  }, [countyId, searchParams]);
+
+  const handleGeographyChange = useCallback(
+    (id: SupportedCountyId) => {
+      setCountyId(id);
+      setScenario((prev) => ({ ...prev, county: id }));
+    },
+    [setCountyId]
+  );
 
   const update = useCallback((patch: Partial<Scenario>) => {
     setScenario((prev) => ({ ...prev, ...patch }));
@@ -51,16 +55,10 @@ function DesignContent() {
     setRunning(true);
     setError(null);
     try {
-      let response = await runScenario({ ...scenario, county: countyId as SupportedCountyId });
-      if (response.status === "pending") {
-        response = await waitForRun(response.run_id);
-      }
-      if (response.status === "failed" || !response.result) {
-        throw new Error(response.error_message || "Simulation failed");
-      }
-      const params = scenarioToSearchParams({ ...scenario, county: countyId as SupportedCountyId });
-      params.set("run_id", response.run_id);
-      router.push(`/results?${params.toString()}`);
+      clearLastComparisonSession();
+      const payload = { ...scenario, county: scenario.county };
+      const { runId } = await startRunForGeography(payload);
+      router.push(resultsHrefForRun(payload, runId));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Run failed");
     } finally {
@@ -79,239 +77,20 @@ function DesignContent() {
             <p className="text-ink-muted text-sm">{t("design.subtitle")}</p>
           </div>
 
-          <ScenarioSummaryCompact scenario={scenario} onNameChange={(name) => update({ name })} />
-
-          {/* Pillar 1: HSS */}
           <section className="bg-card border border-border rounded-xl p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <h2 className="font-display text-lg">{t("design.pillar1")}</h2>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={scenario.hss.enabled}
-                  onChange={(e) =>
-                    update({
-                      hss: {
-                        ...scenario.hss,
-                        enabled: e.target.checked,
-                        intensity: e.target.checked ? "moderate" : "off",
-                      },
-                    })
-                  }
-                />
-                {t("design.enable")}
-              </label>
-            </div>
-            {scenario.hss.enabled && (
-              <PillSelector
-                options={HSS_OPTIONS.filter((o) => o.value !== "off")}
-                value={scenario.hss.intensity}
-                onChange={(v) =>
-                  update({ hss: { ...scenario.hss, intensity: v as HSSIntensity } })
-                }
-              />
-            )}
-            {scenario.hss.enabled && (
-              <details className="mt-4 pt-4 border-t border-border-soft">
-                <summary className="text-sm text-ink-muted cursor-pointer hover:text-ink">
-                  {t("design.moreParams")}
-                </summary>
-                <div className="mt-4 grid md:grid-cols-2 gap-4 text-sm">
-                  <label className="block">
-                    <span className="text-ink-muted text-xs">4+ ANC rate (%)</span>
-                    <input
-                      type="range"
-                      min={56}
-                      max={95}
-                      value={Math.round((scenario.hss.p_anc ?? 0.8) * 100)}
-                      onChange={(e) =>
-                        update({
-                          hss: { ...scenario.hss, p_anc: Number(e.target.value) / 100 },
-                        })
-                      }
-                      className="w-full mt-1"
-                    />
-                    <span className="num text-xs">{Math.round((scenario.hss.p_anc ?? 0.8) * 100)}%</span>
-                  </label>
-                  <label className="block">
-                    <span className="text-ink-muted text-xs">L4/5 delivery (%)</span>
-                    <input
-                      type="range"
-                      min={38}
-                      max={95}
-                      value={Math.round((scenario.hss.p_l45 ?? 0.68) * 100)}
-                      onChange={(e) =>
-                        update({
-                          hss: { ...scenario.hss, p_l45: Number(e.target.value) / 100 },
-                        })
-                      }
-                      className="w-full mt-1"
-                    />
-                    <span className="num text-xs">{Math.round((scenario.hss.p_l45 ?? 0.68) * 100)}%</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={scenario.hss.refer_enabled ?? true}
-                      onChange={(e) =>
-                        update({ hss: { ...scenario.hss, refer_enabled: e.target.checked } })
-                      }
-                    />
-                    Referral network enabled
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={scenario.hss.transfer_enabled ?? true}
-                      onChange={(e) =>
-                        update({ hss: { ...scenario.hss, transfer_enabled: e.target.checked } })
-                      }
-                    />
-                    Emergency transfer enabled
-                  </label>
-                </div>
-              </details>
-            )}
+            <h2 className="font-display text-lg mb-1">{t("geography.title")}</h2>
+            <p className="text-sm text-ink-muted mb-4 leading-relaxed">{t("geography.designHint")}</p>
+            <GeographyPicker value={scenario.county} onChange={handleGeographyChange} />
           </section>
 
-          {/* Pillar 2: Treatments */}
-          {!showTreatments ? (
-            <button
-              type="button"
-              onClick={() => {
-                setShowTreatments(true);
-                update({ treatments: { ...scenario.treatments, enabled: true } });
-              }}
-              className="w-full border-2 border-dashed border-border rounded-xl p-6 text-ink-muted hover:border-intervention hover:text-intervention transition"
-            >
-              + {t("design.addTreatments")}
-            </button>
-          ) : (
-            <section className="bg-card border border-border rounded-xl p-4 md:p-6">
-              <h2 className="font-display text-lg mb-4">{t("design.pillar2")}</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(
-                  [
-                    ["pph_bundle", "PPH bundle"],
-                    ["iv_iron", "IV iron"],
-                    ["mgso4", "MgSO4"],
-                    ["antibiotics", "Antibiotics"],
-                    ["oxytocin", "Oxytocin"],
-                    ["ultrasound", "Ultrasound"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <label key={key} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={!!scenario.treatments[key]}
-                      onChange={(e) =>
-                        update({
-                          treatments: { ...scenario.treatments, enabled: true, [key]: e.target.checked },
-                        })
-                      }
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-            </section>
-          )}
+          <ScenarioSummaryCompact scenario={scenario} onNameChange={(name) => update({ name })} />
 
-          {/* Pillar 3: Community */}
-          {!showCommunity ? (
-            <button
-              type="button"
-              onClick={() => {
-                setShowCommunity(true);
-                update({ community: { ...scenario.community, enabled: true } });
-              }}
-              className="w-full border-2 border-dashed border-border rounded-xl p-6 text-ink-muted hover:border-intervention hover:text-intervention transition"
-            >
-              + {t("design.addCommunity")}
-            </button>
-          ) : (
-            <section className="bg-card border border-border rounded-xl p-4 md:p-6">
-              <h2 className="font-display text-lg mb-4">{t("design.pillar3")}</h2>
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={scenario.community.prompts.enabled}
-                    onChange={(e) =>
-                      update({
-                        community: {
-                          ...scenario.community,
-                          enabled: true,
-                          prompts: {
-                            ...scenario.community.prompts,
-                            enabled: e.target.checked,
-                            adoption: e.target.checked ? 0.8 : 0,
-                            chv_engagement: e.target.checked ? 0.8 : 0,
-                          },
-                        },
-                      })
-                    }
-                  />
-                  PROMPTS
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={scenario.community.mentors.enabled}
-                    onChange={(e) =>
-                      update({
-                        community: {
-                          ...scenario.community,
-                          enabled: true,
-                          mentors: {
-                            ...scenario.community.mentors,
-                            enabled: e.target.checked,
-                            adoption: e.target.checked ? 0.8 : 0,
-                          },
-                        },
-                      })
-                    }
-                  />
-                  MENTORS
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={scenario.community.fqa.enabled}
-                    onChange={(e) =>
-                      update({
-                        community: {
-                          ...scenario.community,
-                          enabled: true,
-                          fqa: { ...scenario.community.fqa, enabled: e.target.checked },
-                        },
-                      })
-                    }
-                  />
-                  FQA
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={scenario.community.pulse.enabled}
-                    onChange={(e) =>
-                      update({
-                        community: {
-                          ...scenario.community,
-                          enabled: true,
-                          pulse: { ...scenario.community.pulse, enabled: e.target.checked },
-                        },
-                      })
-                    }
-                  />
-                  PULSE
-                </label>
-              </div>
-            </section>
-          )}
+          <DesignInterventionPillars
+            scenario={scenario}
+            onChange={(next) => setScenario(next)}
+          />
 
-          {/* Run settings */}
-          <section className="bg-card border border-border rounded-xl p-4 md:p-6">
+          <section id="run-settings" className="bg-card border border-border rounded-xl p-4 md:p-6 scroll-mt-24">
             <h2 className="font-display text-lg mb-4">{t("design.runSettings")}</h2>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
@@ -337,16 +116,26 @@ function DesignContent() {
               </div>
               <div>
                 <label className="text-sm text-ink-muted block mb-2">{t("design.runMode")}</label>
-                <PillSelector
-                  options={[
-                    { value: "quick", label: "Quick", hint: "~1 min" },
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: "quick", label: "Quick", hint: "1 min" },
                     { value: "robust", label: "Robust", hint: "Multiple runs + CI" },
-                  ]}
-                  value={scenario.run.mode}
-                  onChange={(v) =>
-                    update({ run: { ...scenario.run, mode: v as "quick" | "robust" } })
-                  }
-                />
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() =>
+                        update({ run: { ...scenario.run, mode: opt.value as "quick" | "robust" } })
+                      }
+                      className={`pill min-h-[44px] px-4 py-2 rounded-full border border-border text-sm ${
+                        scenario.run.mode === opt.value ? "active" : "bg-card hover:bg-paper-deep"
+                      }`}
+                    >
+                      {opt.label}
+                      <span className="block text-[10px] opacity-70 mt-0.5">{opt.hint}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </section>

@@ -1,17 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import BackToLastResultsLink from "@/components/BackToLastResultsLink";
-import BackToLastComparisonLink from "@/components/BackToLastComparisonLink";
 import { useCounty } from "@/components/county/CountyProvider";
-import InterventionLibrary, {
-  applyIntervention,
-} from "@/components/compare/InterventionLibrary";
+import InterventionLibrary from "@/components/compare/InterventionLibrary";
 import { CompareScenarioColumns } from "@/components/compare/ScenarioColumn";
 import StickyActionBar from "@/components/responsive/StickyActionBar";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { compareScenarios } from "@/lib/api";
 import {
+  applyIntervention,
   hasIntervention,
   mergeScenario,
   QUICK_COMPARE_PRESETS,
@@ -21,19 +21,24 @@ import {
 import { DEFAULT_SCENARIO, Scenario, SupportedCountyId } from "@/lib/scenarios";
 import { scenarioFromURLParams } from "@/lib/url-state";
 import { getLastRun } from "@/lib/last-run-storage";
+import { countyDisplayName } from "@/lib/counties";
 
 import { getLastCompareResultsHref, saveLastComparison } from "@/lib/compare-storage";
 
 export default function ComparePage() {
   const router = useRouter();
+  const { t } = useLocale();
   const { countyId } = useCounty();
+  const lockedCounty = countyId as SupportedCountyId;
   const [scenarioA, setScenarioA] = useState<Scenario>({
     ...DEFAULT_SCENARIO,
+    county: lockedCounty,
     name: "Scenario A · Baseline",
     hss: { enabled: true, intensity: "moderate" },
   });
   const [scenarioB, setScenarioB] = useState<Scenario>({
     ...DEFAULT_SCENARIO,
+    county: lockedCounty,
     name: "Scenario B · Intensive + Treatments",
     hss: { enabled: true, intensity: "intensive" },
     treatments: { enabled: true, pph_bundle: true, mgso4: true },
@@ -50,21 +55,17 @@ export default function ComparePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setScenarioA((prev) => ({ ...prev, county: countyId as SupportedCountyId }));
-    setScenarioB((prev) => ({ ...prev, county: countyId as SupportedCountyId }));
-  }, [countyId]);
-
-  useEffect(() => {
     const last = getLastRun();
     if (!last) return;
     const fromLastRun = scenarioFromURLParams(last.scenarioEncoded);
     if (fromLastRun) {
       setScenarioA({
         ...fromLastRun,
+        county: lockedCounty,
         name: fromLastRun.name || "Scenario A · Your run",
       });
     }
-  }, []);
+  }, [lockedCounty]);
 
   const handleLibraryAdd = useCallback(
     (target: "a" | "b", id: InterventionId) => {
@@ -81,17 +82,30 @@ export default function ComparePage() {
 
   const applyQuickPreset = (index: number) => {
     const preset = QUICK_COMPARE_PRESETS[index];
-    setScenarioA(mergeScenario(DEFAULT_SCENARIO, { name: "Scenario A", ...preset.a }));
-    setScenarioB(mergeScenario(DEFAULT_SCENARIO, { name: "Scenario B", ...preset.b }));
+    setScenarioA(
+      mergeScenario(DEFAULT_SCENARIO, {
+        name: "Scenario A",
+        county: scenarioA.county,
+        ...preset.a,
+      })
+    );
+    setScenarioB(
+      mergeScenario(DEFAULT_SCENARIO, {
+        name: "Scenario B",
+        county: scenarioB.county,
+        ...preset.b,
+      })
+    );
   };
 
   const handleCompare = async () => {
     setRunning(true);
     setError(null);
     try {
+      const county = scenarioA.county;
       const response = await compareScenarios(
-        { ...scenarioA, county: countyId as SupportedCountyId },
-        { ...scenarioB, county: countyId as SupportedCountyId },
+        { ...scenarioA, county },
+        { ...scenarioB, county },
         scenarioA.run.mode
       );
       saveLastComparison(response);
@@ -126,12 +140,13 @@ export default function ComparePage() {
                 Scenario Comparison
               </h1>
               <p className="text-ink-soft mt-3 max-w-xl text-sm sm:text-base">
-                Build intervention scenarios across all three pillars and compare projected
-                outcomes.
+                {t("compare.subtitle")}
+              </p>
+              <p className="text-xs text-ink-muted mt-2 max-w-xl">
+                {t("compare.countyScopeHint", { county: countyDisplayName(scenarioA.county) })}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <BackToLastComparisonLink />
               <BackToLastResultsLink />
             </div>
           </div>
@@ -161,34 +176,41 @@ export default function ComparePage() {
             />
           </div>
 
-          <div className="flex items-center gap-4 flex-wrap hidden lg:flex">
-            <label className="text-sm text-ink-muted flex items-center gap-2">
-              Run mode:
-              <select
-                value={scenarioA.run.mode}
-                onChange={(e) => {
-                  const mode = e.target.value as "quick" | "robust";
-                  setScenarioA({ ...scenarioA, run: { ...scenarioA.run, mode } });
-                  setScenarioB({ ...scenarioB, run: { ...scenarioB.run, mode } });
-                }}
-                className="border border-border rounded px-2 py-1 text-sm min-h-[44px]"
+          <div className="flex items-center justify-between gap-4 flex-wrap mt-8">
+            <Link
+              href="/design"
+              className="text-sm text-ink-muted hover:text-accent underline underline-offset-4"
+            >
+              {t("compare.backToDesign")}
+            </Link>
+            <div className="flex items-center gap-4 flex-wrap">
+              <label className="text-sm text-ink-muted flex items-center gap-2 hidden lg:flex">
+                Run mode:
+                <select
+                  value={scenarioA.run.mode}
+                  onChange={(e) => {
+                    const mode = e.target.value as "quick" | "robust";
+                    setScenarioA({ ...scenarioA, run: { ...scenarioA.run, mode } });
+                    setScenarioB({ ...scenarioB, run: { ...scenarioB.run, mode } });
+                  }}
+                  className="border border-border rounded px-2 py-1 text-sm min-h-[44px]"
+                >
+                  <option value="quick">Quick</option>
+                  <option value="robust">Robust</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={handleCompare}
+                disabled={running}
+                className="px-8 py-3 bg-accent text-paper rounded-md font-medium disabled:opacity-50 hover:bg-accent/90 transition hidden lg:inline-flex min-h-[44px] items-center"
               >
-                <option value="quick">Quick</option>
-                <option value="robust">Robust</option>
-              </select>
-            </label>
+                {running ? "Running comparison…" : t("compare.runComparison")}
+              </button>
+            </div>
           </div>
 
           {error && <p className="text-negative mt-4 hidden lg:block">{error}</p>}
-
-          <button
-            type="button"
-            onClick={handleCompare}
-            disabled={running}
-            className="mt-8 px-8 py-3 bg-accent text-paper rounded-md font-medium disabled:opacity-50 hover:bg-accent/90 transition hidden lg:inline-flex min-h-[44px] items-center"
-          >
-            {running ? "Running comparison…" : "Run comparison →"}
-          </button>
         </main>
       </div>
 
@@ -216,7 +238,7 @@ export default function ComparePage() {
             disabled={running}
             className="w-full min-h-[44px] py-3 bg-accent text-paper rounded-md font-medium disabled:opacity-50 hover:bg-accent/90 transition"
           >
-            {running ? "Running comparison…" : "Run comparison →"}
+            {running ? "Running comparison…" : t("compare.runComparison")}
           </button>
         </div>
       </StickyActionBar>

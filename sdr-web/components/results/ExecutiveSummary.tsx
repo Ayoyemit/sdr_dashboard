@@ -12,12 +12,11 @@ interface Props {
 export default function ExecutiveSummary({ summary, result }: Props) {
   const { t } = useLocale();
 
-  const toneClass =
-    summary.verdictTone === "positive"
-      ? "bg-intervention-soft text-intervention border-intervention/20"
-      : summary.verdictTone === "warning"
-        ? "bg-warning/10 text-warning border-warning/30"
-        : "bg-paper-deep text-ink-soft border-border";
+  const totalCostValue = summary.showTotalCost
+    ? `$${result.summary.cumulative_cost_usd.toLocaleString(undefined, {
+        maximumFractionDigits: 0,
+      })}`
+    : t("exec.costDalyNa");
 
   return (
     <section className="mb-8 bg-card border border-border rounded-xl overflow-hidden">
@@ -64,26 +63,32 @@ export default function ExecutiveSummary({ summary, result }: Props) {
             })}
           />
           <SummaryStat
-            label={t("exec.dalysAverted")}
-            value={result.summary.dalys_averted.toLocaleString(undefined, {
+            label={t("exec.severeOutcomes")}
+            value={result.summary.severe_maternal_outcomes_averted.toLocaleString(undefined, {
               maximumFractionDigits: 0,
             })}
           />
           <SummaryStat
-            label={t("exec.costPerDaly")}
-            value={`$${result.summary.cost_per_daly_averted_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-            accent
+            label={t("exec.l45Shift")}
+            value={`+${summary.l45ShiftPts} pts`}
           />
           <SummaryStat
             label={t("exec.totalCost")}
-            value={`$${result.summary.cumulative_cost_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+            value={totalCostValue}
+            subtext={!summary.showTotalCost ? t("exec.costDalyKakamegaOnly") : undefined}
+            accent={summary.showTotalCost}
           />
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          <span className={`text-xs px-3 py-1.5 rounded-md border font-medium ${toneClass}`}>
-            {summary.verdict}
-          </span>
+          {summary.verdictTags.map((tag) => (
+            <span
+              key={tag}
+              className="text-xs px-3 py-1.5 rounded-md border font-medium bg-intervention-soft text-intervention border-intervention/20"
+            >
+              {tag}
+            </span>
+          ))}
           <span className="text-xs px-3 py-1.5 rounded-md border border-border bg-paper-deep text-ink-soft">
             {summary.systemNote}
           </span>
@@ -118,10 +123,12 @@ export default function ExecutiveSummary({ summary, result }: Props) {
 function SummaryStat({
   label,
   value,
+  subtext,
   accent,
 }: {
   label: string;
   value: string;
+  subtext?: string;
   accent?: boolean;
 }) {
   return (
@@ -130,6 +137,7 @@ function SummaryStat({
       <div className={`font-display text-2xl num ${accent ? "text-accent" : "text-ink"}`}>
         {value}
       </div>
+      {subtext && <div className="text-[10px] text-ink-muted mt-1">{subtext}</div>}
     </div>
   );
 }

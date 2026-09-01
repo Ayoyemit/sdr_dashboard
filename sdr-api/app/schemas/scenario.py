@@ -22,6 +22,8 @@ class TreatmentsConfig(BaseModel):
     antibiotics: bool = False
     oxytocin: bool = False
     ultrasound: bool = False
+    intrapartum_sensors: bool = False
+    intrapartum_sensors_ai: bool = False
 
 
 class PromptsConfig(BaseModel):
@@ -54,6 +56,11 @@ class ReferralEMTConfig(BaseModel):
     emt_participation: Optional[float] = Field(None, ge=0.0, le=1.0)
 
 
+class BloodTrackingConfig(BaseModel):
+    enabled: bool = False
+    level: Literal["current", "moderate", "intensive"] = "current"
+
+
 class CommunityConfig(BaseModel):
     enabled: bool = False
     prompts: PromptsConfig = Field(default_factory=PromptsConfig)
@@ -61,6 +68,7 @@ class CommunityConfig(BaseModel):
     fqa: FQAConfig = Field(default_factory=FQAConfig)
     pulse: PulseConfig = Field(default_factory=PulseConfig)
     referral_emt: ReferralEMTConfig = Field(default_factory=ReferralEMTConfig)
+    blood_tracking: BloodTrackingConfig = Field(default_factory=BloodTrackingConfig)
 
 
 class RunConfig(BaseModel):

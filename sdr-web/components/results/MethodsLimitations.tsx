@@ -115,6 +115,7 @@ export default function MethodsLimitations({ scenario, result, runId }: Props) {
             <li>{t("methods.lim2")}</li>
             <li>{t("methods.lim3")}</li>
             <li>{t("methods.lim4")}</li>
+            <li>{t("methods.lim5")}</li>
           </ul>
         </section>
 

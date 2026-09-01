@@ -1,13 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import CountyDropdown from "@/components/CountyDropdown";
 import LanguageToggle from "@/components/i18n/LanguageToggle";
+import GeographyBadge from "@/components/geography/GeographyBadge";
 import NavOverflowMenu from "@/components/NavOverflowMenu";
+import SdrLogoMark from "@/components/SdrLogoMark";
+import WorkflowStepper from "@/components/WorkflowStepper";
+import { useCounty } from "@/components/county/CountyProvider";
 import { useLocale } from "@/components/i18n/LocaleProvider";
-import { getLastCompareResultsHref } from "@/lib/compare-storage";
+import { getLastCompareResultsHref, getLastComparisonData } from "@/lib/compare-storage";
+import { aboutBackLabel, aboutHref, getCurrentReturnPath, safeReturnPath } from "@/lib/about-nav";
 import { getLastResultsHref } from "@/lib/last-run-storage";
+import { scenarioFromURLParams } from "@/lib/url-state";
+import { SupportedCountyId } from "@/lib/scenarios";
 
 type NavMode = "minimal" | "workflow" | "compare";
 
@@ -23,63 +31,25 @@ function getNavMode(pathname: string): NavMode {
 }
 
 function NavLogo({ compact = false }: { compact?: boolean }) {
+  const { county } = useCounty();
+  const title = compact ? `${county.name} Decision Tool` : `${county.name} Decision Tool`;
+
   return (
     <Link href="/" className="flex items-center gap-2.5 shrink-0 min-w-0 min-h-[44px]">
       <div className="w-8 h-8 rounded-md bg-paper-deep border border-border flex items-center justify-center shrink-0">
-        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" aria-hidden>
-          <path
-            d="M3 12h3l2-4 4 8 2-6 2 3h5"
-            stroke="#B5471F"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <SdrLogoMark />
       </div>
       {!compact ? (
         <div className="leading-tight hidden sm:block min-w-0">
           <div className="text-[11px] tracking-[0.18em] text-ink-muted uppercase truncate">
             Service Delivery Redesign
           </div>
-          <div className="font-display text-[15px] font-medium truncate">
-            Kenya Maternal Health Decision Tool
-          </div>
+          <div className="font-display text-[15px] font-medium truncate">{title}</div>
         </div>
       ) : (
-        <span className="font-display text-sm font-medium hidden sm:inline truncate">SDR Kenya</span>
+        <span className="font-display text-sm font-medium hidden sm:inline truncate">{title}</span>
       )}
     </Link>
-  );
-}
-
-function StepNav({ steps, activeHref }: { steps: StepDef[]; activeHref: string }) {
-  const { t } = useLocale();
-
-  return (
-    <nav
-      className="hidden md:flex items-center gap-0.5 min-w-0"
-      aria-label={t("nav.workflow")}
-    >
-      {steps.map((step, i) => {
-        const active = step.href === activeHref;
-        return (
-          <span key={step.href} className="flex items-center shrink-0">
-            {i > 0 && <span className="text-ink-muted/50 px-1 text-xs select-none">/</span>}
-            <Link
-              href={step.href}
-              aria-current={active ? "page" : undefined}
-              className={`min-h-[44px] inline-flex items-center px-2.5 py-1 rounded-md text-sm whitespace-nowrap transition ${
-                active
-                  ? "bg-card text-ink font-medium shadow-sm border border-border/60"
-                  : "text-ink-muted hover:text-ink-soft"
-              }`}
-            >
-              {step.label}
-            </Link>
-          </span>
-        );
-      })}
-    </nav>
   );
 }
 
@@ -129,19 +99,31 @@ function MinimalNavBar({ trailing }: { trailing: React.ReactNode }) {
 }
 
 function WorkflowNavBar({
-  steps,
-  activeHref,
+  resultsHref,
   compareHref,
+  aboutLink,
   showCompareLink,
   showShare,
+  mobileSteps,
+  mobileActiveHref,
+  showCountySwitcher,
+  resultsCountyId,
+  compareCountyId,
 }: {
-  steps: StepDef[];
-  activeHref: string;
+  resultsHref: string;
   compareHref: string;
+  aboutLink: string;
   showCompareLink: boolean;
   showShare: boolean;
+  mobileSteps: StepDef[];
+  mobileActiveHref: string;
+  showCountySwitcher: boolean;
+  resultsCountyId?: string | null;
+  compareCountyId?: SupportedCountyId | null;
 }) {
+  const { t } = useLocale();
   const [shareOpen, setShareOpen] = useState(false);
+  const stepperVariant = compareCountyId != null ? "compare" : "single";
 
   return (
     <>
@@ -149,20 +131,39 @@ function WorkflowNavBar({
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-2.5 flex items-center gap-2 sm:gap-3">
           <NavLogo compact />
 
-          <MobileStepLabel steps={steps} activeHref={activeHref} />
+          <MobileStepLabel steps={mobileSteps} activeHref={mobileActiveHref} />
 
           <div className="flex-1 flex justify-center min-w-0 px-1">
-            <StepNav steps={steps} activeHref={activeHref} />
+            <WorkflowStepper
+              variant={stepperVariant}
+              resultsHref={resultsHref}
+              compareHref={compareHref}
+            />
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {showCountySwitcher ? (
+              <CountyDropdown />
+            ) : compareCountyId ? (
+              <GeographyBadge countyId={compareCountyId} titleKey="geography.compareLocked" />
+            ) : resultsCountyId ? (
+              <GeographyBadge countyId={resultsCountyId as SupportedCountyId} />
+            ) : null}
             <LanguageToggle />
+            <Link
+              href={aboutLink}
+              className="hidden sm:inline-flex min-h-[44px] items-center px-2.5 py-1 text-xs border border-border rounded-md text-ink-muted hover:text-ink hover:bg-paper-deep transition whitespace-nowrap"
+            >
+              {t("nav.help")}
+            </Link>
             <NavOverflowMenu
               compareHref={compareHref}
+              aboutHref={aboutLink}
               showCompare={showCompareLink}
+              showCountySwitcher={showCountySwitcher}
               onShare={showShare ? () => setShareOpen(true) : undefined}
-              workflowSteps={steps}
-              activeStepHref={activeHref}
+              workflowSteps={mobileSteps}
+              activeStepHref={mobileActiveHref}
             />
           </div>
         </div>
@@ -175,15 +176,33 @@ function WorkflowNavBar({
 
 export default function TopNav() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t } = useLocale();
+  const { countyId } = useCounty();
   const mode = getNavMode(pathname);
   const [resultsHref, setResultsHref] = useState("/results");
   const [compareHref, setCompareHref] = useState("/compare");
+  const [compareCountyId, setCompareCountyId] = useState<SupportedCountyId | null>(null);
+  const isResultsPage = pathname.startsWith("/results");
+  const resultsCountyId = useMemo(() => {
+    if (!isResultsPage) return null;
+    return scenarioFromURLParams(searchParams.get("s"))?.county ?? null;
+  }, [isResultsPage, searchParams]);
 
   useEffect(() => {
     setResultsHref(getLastResultsHref() ?? "/results");
-    setCompareHref(getLastCompareResultsHref() ?? "/compare");
-  }, [pathname]);
+    setCompareHref(getLastCompareResultsHref() ?? "/compare/results");
+    if (!pathname.startsWith("/compare")) {
+      setCompareCountyId(null);
+      return;
+    }
+    if (pathname.startsWith("/compare/results")) {
+      const last = getLastComparisonData();
+      setCompareCountyId((last?.scenario_a?.county as SupportedCountyId) ?? countyId);
+    } else {
+      setCompareCountyId(countyId);
+    }
+  }, [pathname, countyId]);
 
   const workflowSteps: StepDef[] = useMemo(
     () => [
@@ -196,18 +215,24 @@ export default function TopNav() {
   const compareSteps: StepDef[] = useMemo(
     () => [
       { href: "/design", label: t("nav.designShort") },
+      { href: "/compare", label: t("nav.compareStep") },
       {
-        href: pathname.startsWith("/compare/results") ? compareHref : "/compare",
-        label: t("nav.compare"),
+        href: pathname.startsWith("/compare/results") ? compareHref : "/compare/results",
+        label: t("nav.compareResults"),
       },
     ],
     [t, compareHref, pathname]
   );
 
   const workflowActiveHref = pathname.startsWith("/results") ? resultsHref : "/design";
+  const returnPath = getCurrentReturnPath(pathname, searchParams.toString());
+  const aboutLink = aboutHref(returnPath || null);
+  const aboutReturnTo = safeReturnPath(searchParams.get("returnTo"));
 
   if (mode === "minimal") {
     const isAbout = pathname === "/about";
+    const backHref = isAbout ? (aboutReturnTo ?? "/") : aboutLink;
+    const backLabel = isAbout ? aboutBackLabel(aboutReturnTo, t) : t("nav.help");
     return (
       <MinimalNavBar
         trailing={
@@ -219,19 +244,18 @@ export default function TopNav() {
                   {t("nav.about")}
                 </span>
                 <Link
-                  href="/"
+                  href={backHref}
                   className="min-h-[44px] inline-flex items-center px-3 py-1.5 text-sm border border-border rounded-md hover:bg-paper-deep transition whitespace-nowrap"
                 >
-                  <span className="hidden xs:inline">← </span>
-                  {t("nav.start")}
+                  {backLabel}
                 </Link>
               </>
             ) : (
               <Link
-                href="/about"
+                href={aboutLink}
                 className="min-h-[44px] inline-flex items-center px-3 py-1.5 text-sm border border-border rounded-md hover:bg-paper-deep transition whitespace-nowrap"
               >
-                <span className="hidden sm:inline">{t("nav.about")}</span>
+                <span className="hidden sm:inline">{t("nav.help")}</span>
                 <span className="sm:hidden">?</span>
               </Link>
             )}
@@ -245,22 +269,30 @@ export default function TopNav() {
     const activeHref = pathname.startsWith("/compare/results") ? compareHref : "/compare";
     return (
       <WorkflowNavBar
-        steps={compareSteps}
-        activeHref={activeHref}
+        resultsHref={compareHref}
         compareHref={compareHref}
+        aboutLink={aboutLink}
         showCompareLink={false}
         showShare
+        mobileSteps={compareSteps}
+        mobileActiveHref={activeHref}
+        showCountySwitcher={false}
+        compareCountyId={compareCountyId}
       />
     );
   }
 
   return (
     <WorkflowNavBar
-      steps={workflowSteps}
-      activeHref={workflowActiveHref}
+      resultsHref={resultsHref}
       compareHref={compareHref}
+      aboutLink={aboutLink}
       showCompareLink
       showShare
+      mobileSteps={workflowSteps}
+      mobileActiveHref={workflowActiveHref}
+      showCountySwitcher={!isResultsPage}
+      resultsCountyId={resultsCountyId}
     />
   );
 }

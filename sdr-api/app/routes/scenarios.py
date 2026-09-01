@@ -1,11 +1,15 @@
 import traceback
+import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from app.schemas.results import CompareDeltas, CompareResponse, DeltaMetric, RunResponse
 from app.schemas.scenario import CompareRequest, ScenarioRequest
 from app.services.cache import cache
+from app.services.run_executor import submit_simulation
+from app.services.run_worker import run_and_cache
+from app.services.scenario_fingerprint import scenario_fingerprint
 
 router = APIRouter(prefix="/api/v1/scenarios", tags=["scenarios"])
 
@@ -54,78 +58,55 @@ def _validate_county(scenario: ScenarioRequest) -> None:
         )
 
 
-def _run_and_cache(run_id: str, scenario: ScenarioRequest) -> None:
-    from app.services.runner import run_scenario
+def _cached_run_response(run_id: str) -> RunResponse:
+    from app.schemas.results import ScenarioResult
 
-    try:
-        result = run_scenario(scenario)
-        cache.set_run(
-            run_id,
-            {
-                "scenario": scenario.model_dump(),
-                "result": result.model_dump(),
-                "completed_at": datetime.now(timezone.utc).isoformat(),
-            },
-            status="complete",
-        )
-    except Exception as exc:
-        cache.set_run(
-            run_id,
-            {"error_message": "Simulation failed. Please check your scenario settings and try again."},
-            status="failed",
-        )
-        print(traceback.format_exc())
-        print(f"Sim error: {exc}")
+    entry = cache.get_run(run_id)
+    if entry is None or entry.status != "complete":
+        raise HTTPException(status_code=404, detail={"error": {"code": "run_not_found", "message": "Run not found"}})
+    data = entry.data
+    return RunResponse(
+        run_id=run_id,
+        status="complete",
+        scenario=ScenarioRequest(**data["scenario"]),
+        result=ScenarioResult(**data["result"]),
+        completed_at=data.get("completed_at"),
+    )
 
 
 @router.post("/run", response_model=RunResponse)
 def run_scenario_endpoint(
     scenario: ScenarioRequest,
     request: Request,
-    background_tasks: BackgroundTasks,
 ):
     _check_rate_limit(request)
     _validate_county(scenario)
 
-    run_id = cache.new_id()
+    fingerprint = scenario_fingerprint(scenario)
+    cached_run_id = cache.get_run_id_by_fingerprint(fingerprint)
+    if cached_run_id:
+        return _cached_run_response(cached_run_id)
 
-    if scenario.run.mode == "robust":
-        cache.set_run(run_id, {"scenario": scenario.model_dump()}, status="pending")
-        background_tasks.add_task(_run_and_cache, run_id, scenario)
+    pending_run_id = cache.get_pending_run_id(fingerprint)
+    if pending_run_id:
         return RunResponse(
-            run_id=run_id,
+            run_id=pending_run_id,
             status="pending",
             scenario=scenario,
-            estimated_seconds_remaining=600,
+            estimated_seconds_remaining=90 if scenario.run.mode == "quick" else 600,
         )
 
-    try:
-        from app.services.runner import run_scenario
-
-        result = run_scenario(scenario)
-        completed = datetime.now(timezone.utc).isoformat()
-        cache.set_run(
-            run_id,
-            {"scenario": scenario.model_dump(), "result": result.model_dump(), "completed_at": completed},
-        )
-        return RunResponse(
-            run_id=run_id,
-            status="complete",
-            scenario=scenario,
-            result=result,
-            completed_at=completed,
-        )
-    except Exception:
-        print(traceback.format_exc())
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "error": {
-                    "code": "sim_error",
-                    "message": "Simulation failed. Please check your scenario settings and try again.",
-                }
-            },
-        )
+    run_id = cache.new_id()
+    cache.set_run(run_id, {"scenario": scenario.model_dump()}, status="pending")
+    cache.mark_pending(fingerprint, run_id)
+    submit_simulation(run_id, scenario, run_and_cache)
+    eta = 600 if scenario.run.mode == "robust" else 90
+    return RunResponse(
+        run_id=run_id,
+        status="pending",
+        scenario=scenario,
+        estimated_seconds_remaining=eta,
+    )
 
 
 @router.get("/{run_id}", response_model=RunResponse)
@@ -146,11 +127,13 @@ def get_run(run_id: str):
     scenario = ScenarioRequest(**data["scenario"])
 
     if entry.status == "pending":
+        elapsed = max(0, int(time.time() - entry.created_at))
+        base_eta = 600 if scenario.run.mode == "robust" else 90
         return RunResponse(
             run_id=run_id,
             status="pending",
             scenario=scenario,
-            estimated_seconds_remaining=300,
+            estimated_seconds_remaining=max(5, base_eta - elapsed),
         )
     if entry.status == "failed":
         return RunResponse(
@@ -219,8 +202,8 @@ def compare_scenarios(body: CompareRequest, request: Request):
         f"Scenario B averts {sb.maternal_deaths_averted:,.0f} maternal deaths compared with "
         f"{sa.maternal_deaths_averted:,.0f} for Scenario A "
         f"(difference: {deltas.maternal_deaths_averted.diff:+,.0f}). "
-        f"Cost per DALY averted is ${sb.cost_per_daly_averted_usd:,.0f} (B) vs "
-        f"${sa.cost_per_daly_averted_usd:,.0f} (A)."
+        f"Total intervention cost is ${sb.cumulative_cost_usd:,.0f} (B) vs "
+        f"${sa.cumulative_cost_usd:,.0f} (A)."
     )
 
     response = CompareResponse(

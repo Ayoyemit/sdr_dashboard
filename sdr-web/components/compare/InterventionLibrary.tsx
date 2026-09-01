@@ -1,14 +1,22 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { aboutHref } from "@/lib/about-nav";
 import {
-  applyIntervention,
-  GROUP_LABELS,
+  getInterventionLibrary,
+  getMomishLevel,
+  getSingleLevel,
+  GROUP_ORDER,
+  GROUP_LABEL_KEYS,
   hasIntervention,
-  INTERVENTION_LIBRARY,
   InterventionGroup,
   InterventionId,
   LibraryItem,
+  setMomishLevel,
+  setSingleLevel,
 } from "@/lib/interventions";
 import { Scenario } from "@/lib/scenarios";
 
@@ -20,7 +28,12 @@ interface Props {
   onAdd: (target: ColumnTarget, id: InterventionId) => void;
 }
 
-const GROUPS: InterventionGroup[] = ["supply", "treatments", "community"];
+function wiredBadge(item: LibraryItem, t: (k: string) => string) {
+  if (item.wired === "wired") return null;
+  if (item.wired === "ui-only")
+    return <span className="text-[9px] text-warning ml-1">● {t("common.uiOnly")}</span>;
+  return <span className="text-[9px] text-warning ml-1">● partial</span>;
+}
 
 function LibButton({
   active,
@@ -52,32 +65,33 @@ function LibButton({
   );
 }
 
-function wiredBadge(item: LibraryItem) {
-  if (item.wired === "wired") return <span className="text-[9px] text-positive ml-1">● wired</span>;
-  if (item.wired === "ui-only")
-    return <span className="text-[9px] text-warning ml-1">● UI only</span>;
-  return <span className="text-[9px] text-warning ml-1">● partial</span>;
-}
-
 function LibraryContent({
   scenarioA,
   scenarioB,
   onAdd,
+  returnPath,
 }: {
   scenarioA: Scenario;
   scenarioB: Scenario;
   onAdd: (target: ColumnTarget, id: InterventionId) => void;
+  returnPath: string;
 }) {
+  const { t } = useLocale();
+  const library = getInterventionLibrary();
+
   return (
     <>
-      {GROUPS.map((group) => {
-        const meta = GROUP_LABELS[group];
-        const items = INTERVENTION_LIBRARY.filter((i) => i.group === group);
+      {GROUP_ORDER.map((group) => {
+        const items = library.filter((i) => i.group === group);
         return (
           <div key={group} className="mb-5">
             <div className="flex items-center gap-2 mb-2.5">
-              <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
-              <span className="text-sm font-medium">{meta.label}</span>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  group === "momish" ? "bg-accent" : group === "single" ? "bg-warning" : "bg-intervention"
+                }`}
+              />
+              <span className="text-sm font-medium">{t(GROUP_LABEL_KEYS[group])}</span>
             </div>
             <div className="space-y-3 pl-4">
               {items.map((item) => {
@@ -87,7 +101,7 @@ function LibraryContent({
                   <div key={item.id}>
                     <div className="text-[12px] mb-1.5">
                       {item.name}
-                      {item.group === "community" && wiredBadge(item)}
+                      {wiredBadge(item, t)}
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
                       <LibButton
@@ -111,6 +125,13 @@ function LibraryContent({
         );
       })}
 
+      <Link
+        href={aboutHref(returnPath)}
+        className="mt-4 block text-xs text-accent hover:underline pl-4"
+      >
+        {t("interventions.learnMore")} →
+      </Link>
+
       <div className="mt-3 pl-4 pt-2 border-t border-border-soft text-[9px] text-ink-muted leading-relaxed">
         <span className="text-positive">●</span> drives simulation ·{" "}
         <span className="text-warning">●</span> UI controls only (model wiring pending)
@@ -120,6 +141,9 @@ function LibraryContent({
 }
 
 export default function InterventionLibrary({ scenarioA, scenarioB, onAdd }: Props) {
+  const { t } = useLocale();
+  const pathname = usePathname();
+  const returnPath = pathname || "/compare";
   const [open, setOpen] = useState(false);
 
   return (
@@ -131,26 +155,33 @@ export default function InterventionLibrary({ scenarioA, scenarioB, onAdd }: Pro
           className="w-full min-h-[44px] flex items-center justify-between px-4 py-3 bg-card border border-border rounded-xl text-sm font-medium"
           aria-expanded={open}
         >
-          <span>Add interventions</span>
+          <span>{t("compare.libraryTitle")}</span>
           <span className="text-ink-muted">{open ? "−" : "+"}</span>
         </button>
         {open && (
           <div className="mt-3 p-4 bg-card border border-border rounded-xl max-h-[60vh] overflow-y-auto">
-            <LibraryContent scenarioA={scenarioA} scenarioB={scenarioB} onAdd={onAdd} />
+            <LibraryContent
+              scenarioA={scenarioA}
+              scenarioB={scenarioB}
+              onAdd={onAdd}
+              returnPath={returnPath}
+            />
           </div>
         )}
       </div>
 
       <div className="hidden lg:block">
-        <h2 className="font-display text-2xl leading-tight mb-1">Intervention Library</h2>
-        <p className="text-xs text-ink-muted mb-5">
-          Click <span className="num">+ A</span> or <span className="num">+ B</span> to add to a
-          scenario.
-        </p>
-        <LibraryContent scenarioA={scenarioA} scenarioB={scenarioB} onAdd={onAdd} />
+        <h2 className="font-display text-2xl leading-tight mb-1">{t("compare.libraryTitle")}</h2>
+        <p className="text-xs text-ink-muted mb-5">{t("compare.libraryHint")}</p>
+        <LibraryContent
+          scenarioA={scenarioA}
+          scenarioB={scenarioB}
+          onAdd={onAdd}
+          returnPath={returnPath}
+        />
       </div>
     </aside>
   );
 }
 
-export { applyIntervention };
+export { setMomishLevel, setSingleLevel };

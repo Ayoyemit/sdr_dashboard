@@ -6,13 +6,13 @@ import { useCounty } from "@/components/county/CountyProvider";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import KenyaCountyMap from "@/components/landing/KenyaCountyMap";
 import { fetchPresets } from "@/lib/api";
-import { getPresetDisplay } from "@/lib/preset-labels";
+import { getPresetDisplay, PRESET_DISPLAY_ORDER } from "@/lib/preset-labels";
 import { Preset } from "@/lib/scenarios";
-import { scenarioToSearchParams } from "@/lib/url-state";
+import { designHref } from "@/lib/url-state";
 
 export default function StartPage() {
   const { t } = useLocale();
-  const { county } = useCounty();
+  const { county, countyId } = useCounty();
   const [presets, setPresets] = useState<Preset[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +28,17 @@ export default function StartPage() {
     [presets]
   );
 
+  const orderedPresets = useMemo(() => {
+    const byId = new Map(presets.map((p) => [p.id, p]));
+    const cards: Array<{ id: string; preset?: Preset; isCustom?: boolean }> =
+      PRESET_DISPLAY_ORDER.map((id) => {
+        if (id === "custom") return { id, isCustom: true };
+        const preset = byId.get(id);
+        return preset ? { id, preset } : { id };
+      }).filter((c) => c.isCustom || c.preset);
+    return cards;
+  }, [presets]);
+
   const countyLabel = county.population
     ? t("start.countyActive", {
         name: county.name,
@@ -37,67 +48,103 @@ export default function StartPage() {
 
   return (
     <div className="landing-page mx-auto max-w-7xl px-4 md:px-8">
-      {/* Hero + map */}
-      <section className="grid lg:grid-cols-[1fr_0.85fr] lg:gap-6 lg:flex-1 lg:min-h-0 lg:items-stretch gap-8 mb-8 lg:mb-3">
-        <div className="flex flex-col justify-center min-h-0 lg:py-1">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-accent mb-2">{countyLabel}</p>
-          <h1 className="font-display text-2xl sm:text-3xl xl:text-[2.35rem] font-medium leading-[1.1] mb-3 max-w-xl">
-            {t("start.hero")}
-          </h1>
-          <p className="text-ink-soft text-sm xl:text-base leading-relaxed max-w-lg mb-4 line-clamp-3 lg:line-clamp-2">
-            {t("start.lead")}
-          </p>
-
-          <div className="inline-flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 mb-4 w-fit">
-            <span className="font-display text-2xl num text-accent">{t("start.mmrToday")}</span>
-            <p className="text-xs text-ink-muted max-w-[11rem] leading-snug">{t("start.mmrLabel")}</p>
+      <section className="landing-hero grid lg:grid-cols-2 gap-8 lg:gap-10 items-stretch mb-8 lg:mb-4 lg:min-h-0">
+        <div className="flex flex-col justify-center gap-5 lg:gap-6 lg:py-2 lg:min-h-0">
+          <div className="space-y-3 lg:space-y-4">
+            <p className="inline-flex w-fit items-center rounded-full border border-accent/25 bg-accent/5 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.2em] text-accent">
+              {countyLabel}
+            </p>
+            <h1 className="font-display text-2xl sm:text-3xl xl:text-[2.35rem] font-medium leading-[1.1] tracking-tight max-w-xl">
+              {t("start.hero")}
+            </h1>
+            <p className="text-ink-soft text-sm sm:text-base leading-relaxed max-w-lg lg:line-clamp-3">
+              {t("start.lead")}
+            </p>
           </div>
 
           {featuredPreset && (
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-3">
               <Link
-                href={`/design?${scenarioToSearchParams(featuredPreset.scenario).toString()}`}
+                href={designHref(countyId, featuredPreset.scenario)}
                 className="inline-flex items-center gap-2 min-h-[44px] px-5 py-2.5 bg-ink text-paper rounded-lg text-sm font-medium hover:opacity-90 transition shadow-sm"
               >
                 {t("start.featuredCta")}
                 <span aria-hidden>→</span>
               </Link>
               <Link
-                href="/design"
-                className="text-xs text-ink-muted hover:text-accent underline underline-offset-4 transition"
+                href={designHref(countyId)}
+                className="text-sm text-ink-muted hover:text-accent underline underline-offset-4 transition"
               >
-                {t("start.custom")}
+                {t("start.customAlt")}
               </Link>
             </div>
           )}
         </div>
 
-        <div className="min-h-[220px] sm:min-h-[260px] lg:min-h-0 lg:h-full">
-          <KenyaCountyMap compact />
+        <div className="min-h-[280px] sm:min-h-[320px] lg:min-h-0 lg:h-full">
+          <KenyaCountyMap compact fillHeight />
         </div>
       </section>
 
-      {/* Presets */}
-      <section className="lg:shrink-0 lg:pb-1">
-        <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="font-display text-lg">{t("start.presets")}</h2>
-          <p className="text-xs text-ink-muted">{t("start.presetsHint")}</p>
+      <section className="landing-presets lg:border-t lg:border-border/60 lg:pt-4">
+        <div className="mb-3 lg:mb-2.5 flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-4">
+          <h2 className="font-display text-lg lg:text-xl">{t("start.presets")}</h2>
+          <p className="text-xs sm:text-sm text-ink-muted max-w-md leading-snug">
+            {t("start.presetsHint")}{" "}
+            <Link href={designHref(countyId)} className="underline underline-offset-2 hover:text-accent">
+              {t("start.buildFromScratch")}
+            </Link>
+          </p>
         </div>
 
         {loading ? (
           <p className="text-sm text-ink-muted">{t("start.loadingPresets")}</p>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {presets.map((preset) => {
+            {orderedPresets.map((card) => {
+              if (card.isCustom) {
+                const display = getPresetDisplay("custom", t);
+                return (
+                  <Link
+                    key="custom"
+                    href={designHref(countyId)}
+                    className="preset-card group block bg-card border border-border rounded-xl p-4 lg:p-3.5 min-h-[108px] lg:min-h-[100px]"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h3 className="font-display text-sm lg:text-[15px] leading-snug line-clamp-2">
+                        {display?.name}
+                      </h3>
+                      <span className="preset-card-arrow text-accent shrink-0 text-sm" aria-hidden>
+                        →
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink-muted mb-1 line-clamp-1">{display?.subtitle}</p>
+                    <p className="text-xs text-ink-soft leading-snug line-clamp-2 hidden sm:block">
+                      {display?.description}
+                    </p>
+                  </Link>
+                );
+              }
+
+              const preset = card.preset!;
               const display = getPresetDisplay(preset.id, t);
+              const isRecommended = preset.is_recommended || preset.id === "combined";
+
               return (
                 <Link
                   key={preset.id}
-                  href={`/design?${scenarioToSearchParams(preset.scenario).toString()}`}
-                  className="preset-card group block bg-card border border-border rounded-xl p-4 lg:p-3.5 xl:p-4 min-h-[120px] sm:min-h-[100px]"
+                  href={designHref(countyId, preset.scenario)}
+                  className={`preset-card group block bg-card border rounded-xl p-4 lg:p-3.5 min-h-[108px] lg:min-h-[100px] ${
+                    isRecommended ? "border-accent/50 ring-1 ring-accent/20" : "border-border"
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-0.5">
-                    <h3 className="font-display text-sm xl:text-base leading-snug line-clamp-2">
+                  {isRecommended && (
+                    <span className="text-[9px] uppercase tracking-widest text-accent font-medium mb-1 block">
+                      {t("start.recommended")}
+                    </span>
+                  )}
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <h3 className="font-display text-sm lg:text-[15px] leading-snug line-clamp-2">
                       {display?.name ?? preset.name}
                     </h3>
                     <span className="preset-card-arrow text-accent shrink-0 text-sm" aria-hidden>
@@ -107,7 +154,7 @@ export default function StartPage() {
                   <p className="text-[11px] text-ink-muted mb-1 line-clamp-1">
                     {display?.subtitle ?? preset.subtitle}
                   </p>
-                  <p className="text-xs text-ink-soft leading-snug line-clamp-2">
+                  <p className="text-xs text-ink-soft leading-snug line-clamp-2 hidden sm:block">
                     {display?.description ?? preset.description}
                   </p>
                 </Link>

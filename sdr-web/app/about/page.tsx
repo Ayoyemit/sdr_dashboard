@@ -1,33 +1,34 @@
-export default function AboutPage() {
-  const sections = [
-    {
-      id: "structure",
-      title: "Model structure",
-      body: "The Service Delivery Redesign (SDR) model is an agent-based simulation calibrated for Kakamega, Kisii, Makueni, and Mombasa counties in Kenya. It runs monthly time steps over a configurable implementation and maintenance horizon, tracking pregnant women through ANC, intrapartum care, complications, and outcomes across facility levels (Home, L2/3, L4, L5).",
-    },
-    {
-      id: "assumptions",
-      title: "Key assumptions",
-      body: "Interventions affect demand (ANC uptake, facility delivery), supply (capacity, staffing, equipment), clinical treatments (PPH bundle, MgSO4, etc.), and community programs (PROMPTS, MENTORS). Stochastic variation is controlled via seeded random number generators for reproducibility.",
-    },
-    {
-      id: "data",
-      title: "Data sources",
-      body: "Parameters are calibrated from county-specific demographics, facility counts, and published maternal health literature for each supported county. Cost data is embedded in the model and converted to USD using the Kenya shilling exchange rate.",
-    },
-    {
-      id: "literature",
-      title: "Literature & validation",
-      body: "The model builds on WHO maternal health targets and Kenya-specific calibration work. Results should be interpreted as projections for decision support, not predictions of exact future outcomes.",
-    },
-  ];
+"use client";
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { aboutBackLabel, safeReturnPath } from "@/lib/about-nav";
+
+const SECTION_IDS = ["structure", "assumptions", "data", "literature"] as const;
+
+function AboutContent() {
+  const { t } = useLocale();
+  const searchParams = useSearchParams();
+  const returnTo = safeReturnPath(searchParams.get("returnTo"));
+  const backHref = returnTo ?? "/";
+  const backLabel = aboutBackLabel(returnTo, t);
+
+  const sections = SECTION_IDS.map((id) => ({
+    id,
+    title: t(`about.sections.${id}.title`),
+    body: t(`about.sections.${id}.body`),
+  }));
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
       <div className="grid lg:grid-cols-4 gap-8">
         <nav className="hidden lg:block lg:sticky lg:top-24 h-fit">
-          <h2 className="text-[11px] uppercase tracking-widest text-ink-muted mb-3">On this page</h2>
-          <ul className="space-y-2 text-sm">
+          <h2 className="text-[11px] uppercase tracking-widest text-ink-muted mb-3">
+            {t("about.onThisPage")}
+          </h2>
+          <ul className="space-y-2 text-sm mb-6">
             {sections.map((s) => (
               <li key={s.id}>
                 <a href={`#${s.id}`} className="text-ink-soft hover:text-accent">
@@ -36,13 +37,26 @@ export default function AboutPage() {
               </li>
             ))}
           </ul>
+          <Link
+            href={backHref}
+            className="inline-flex items-center gap-1 text-sm text-ink-muted hover:text-accent"
+          >
+            {backLabel}
+          </Link>
         </nav>
         <div className="lg:col-span-3">
-          <h1 className="font-display text-3xl sm:text-4xl mb-4 sm:mb-6">About the Model</h1>
+          <Link
+            href={backHref}
+            className="lg:hidden inline-flex items-center gap-1 text-sm text-accent hover:underline mb-4 min-h-[44px]"
+          >
+            {backLabel}
+          </Link>
+
+          <h1 className="font-display text-3xl sm:text-4xl mb-4 sm:mb-6">{t("about.title")}</h1>
 
           <nav
             className="lg:hidden flex gap-2 overflow-x-auto scrollbar-none pb-4 mb-6 -mx-1 px-1"
-            aria-label="On this page"
+            aria-label={t("about.onThisPage")}
           >
             {sections.map((s) => (
               <a
@@ -64,5 +78,13 @@ export default function AboutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AboutPage() {
+  return (
+    <Suspense fallback={<div className="max-w-7xl mx-auto px-4 md:px-8 py-8 text-ink-muted">…</div>}>
+      <AboutContent />
+    </Suspense>
   );
 }

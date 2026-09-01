@@ -22,10 +22,10 @@ interface Props {
 
 const STORY_HINT_KEYS: Record<StoryId, string> = {
   kpi: "stories.kpiHint",
-  story01: "stories.worthIt",
-  story02: "stories.mothers",
-  story03: "stories.delivery",
-  story04: "stories.coping",
+  story01: "stories.healthOutcomes",
+  story02: "stories.delivery",
+  story03: "stories.process",
+  story04: "stories.interventionCost",
 };
 
 const STORY_LABEL_KEYS: Record<StoryId, string> = {

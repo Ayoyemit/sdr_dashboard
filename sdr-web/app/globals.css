@@ -115,15 +115,25 @@ main {
   display: none;
 }
 
-/* Landing: fit hero + presets in one viewport on desktop */
-@media (min-width: 1024px) and (min-height: 680px) {
+/* Landing: fit hero + presets on one laptop screen; scroll on smaller viewports */
+@media (min-width: 1024px) and (min-height: 700px) {
   .landing-page {
     height: calc(100dvh - 3.25rem);
-    overflow: hidden;
+    max-height: calc(100dvh - 3.25rem);
     display: flex;
     flex-direction: column;
-    padding-top: 1rem;
+    overflow: hidden;
+    padding-top: 0.75rem;
     padding-bottom: 0.75rem;
+  }
+
+  .landing-page .landing-hero {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .landing-page .landing-presets {
+    flex: 0 0 auto;
   }
 
   .landing-page .preset-card:hover {

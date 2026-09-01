@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useCounty } from "@/components/county/CountyProvider";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -9,12 +10,15 @@ import {
   KENYA_COUNTY_PATHS,
   KENYA_MAP_VIEWBOX,
 } from "@/lib/data/kenya-county-paths";
+import { designHref } from "@/lib/url-state";
 
 interface Props {
   compact?: boolean;
+  /** Stretch map card to fill parent height (landing hero on desktop) */
+  fillHeight?: boolean;
 }
 
-export default function KenyaCountyMap({ compact = false }: Props) {
+export default function KenyaCountyMap({ compact = false, fillHeight = false }: Props) {
   const { t } = useLocale();
   const { countyId, setCountyId, comingSoonCountyId, clearComingSoon } = useCounty();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -24,6 +28,7 @@ export default function KenyaCountyMap({ compact = false }: Props) {
   const hovered = activeId ? getCountyById(activeId) : null;
   const hoveredName = activeId ? getCountyLabel(activeId) : null;
   const selected = getCountyById(countyId);
+  const displayCounty = activeId ? hovered : selected;
 
   const sortedPaths = useMemo(
     () =>
@@ -42,23 +47,50 @@ export default function KenyaCountyMap({ compact = false }: Props) {
 
   const mapPoint = COUNTY_MAP_POINTS[countyId] ?? COUNTY_MAP_POINTS.kakamega;
 
+  const countyDetail =
+    activeId && !isCountySelectable(activeId)
+      ? t("start.comingSoon", {
+          when: hovered?.available ?? t("start.comingSoonShort", { when: "soon" }),
+        })
+      : displayCounty?.population
+        ? t("start.countyPop", {
+            pop: (displayCounty.population / 1_000_000).toFixed(2),
+          })
+        : t("start.calibrated");
+
+  const useFillLayout = compact && fillHeight;
+
   return (
-    <div className={`relative w-full ${compact ? "h-full min-h-0 flex flex-col" : ""}`}>
+    <div
+      className={`relative w-full ${
+        useFillLayout ? "h-full min-h-0 flex flex-col" : compact ? "flex flex-col" : ""
+      }`}
+    >
       <div
         className={`rounded-2xl border border-border bg-gradient-to-br from-paper-deep/80 to-card shadow-[0_20px_50px_rgba(28,26,21,0.06)] flex flex-col min-h-0 ${
-          compact ? "h-full p-3 md:p-4" : "p-4 md:p-6"
+          useFillLayout
+            ? "h-full p-3 md:p-4 gap-2.5"
+            : compact
+              ? "p-4 sm:p-5 gap-4"
+              : "p-4 md:p-6 gap-4"
         }`}
       >
-        <div className={`flex items-start justify-between gap-2 shrink-0 ${compact ? "mb-2" : "mb-4"}`}>
-          <div>
+        <div className="flex items-start justify-between gap-3 shrink-0">
+          <div className="min-w-0">
             <div className="text-[10px] uppercase tracking-[0.2em] text-accent mb-0.5">
               {t("start.mapTitle")}
             </div>
-            {!compact && (
-              <p className="text-xs text-ink-muted max-w-xs leading-relaxed">{t("start.mapHint")}</p>
-            )}
-            {compact && (
-              <p className="text-[10px] text-ink-muted mt-0.5 md:hidden">{t("start.mapHint")}</p>
+            <p
+              className={`text-ink-muted leading-snug ${
+                useFillLayout
+                  ? "hidden lg:block text-[10px] line-clamp-1"
+                  : "text-xs sm:text-sm max-w-[16rem]"
+              }`}
+            >
+              {t("start.mapHint")}
+            </p>
+            {!useFillLayout && (
+              <p className="text-[10px] text-ink-muted mt-0.5 lg:hidden">{t("start.mapHint")}</p>
             )}
           </div>
           {selected?.calibrated && (
@@ -70,7 +102,11 @@ export default function KenyaCountyMap({ compact = false }: Props) {
 
         <div
           className={`relative mx-auto w-full min-h-0 ${
-            compact ? "flex-1 min-h-[200px]" : "aspect-[8/9] max-h-[420px]"
+            useFillLayout
+              ? "flex-1 min-h-[180px]"
+              : compact
+                ? "aspect-[4/5] max-h-[380px] sm:max-h-[420px]"
+                : "aspect-[8/9] max-h-[420px]"
           }`}
         >
           <svg
@@ -97,41 +133,60 @@ export default function KenyaCountyMap({ compact = false }: Props) {
               const isSelected = county.id === countyId;
               const isHovered = county.id === activeId;
 
+              let fill: string;
+              let stroke: string;
+              let strokeWidth: number;
+
+              if (isSelected) {
+                fill = "rgba(181, 71, 31, 0.58)";
+                stroke = "#B5471F";
+                strokeWidth = 2.4;
+              } else if (isHovered && calibrated) {
+                fill = "rgba(46, 95, 92, 0.5)";
+                stroke = "#2E5F5C";
+                strokeWidth = 1.8;
+              } else if (isHovered) {
+                fill = "rgba(156, 144, 130, 0.3)";
+                stroke = "rgba(28, 26, 21, 0.25)";
+                strokeWidth = 1.2;
+              } else if (calibrated) {
+                fill = "rgba(46, 95, 92, 0.34)";
+                stroke = "rgba(46, 95, 92, 0.65)";
+                strokeWidth = 1.3;
+              } else {
+                fill = "rgba(156, 144, 130, 0.1)";
+                stroke = "rgba(28, 26, 21, 0.08)";
+                strokeWidth = 0.7;
+              }
+
               return (
                 <path
                   key={county.id}
                   d={county.d}
                   className="transition-all duration-200 cursor-pointer"
-                  fill={
-                    isSelected
-                      ? "rgba(181, 71, 31, 0.55)"
-                      : isHovered && calibrated
-                        ? "rgba(46, 95, 92, 0.35)"
-                        : isHovered
-                          ? "rgba(156, 144, 130, 0.35)"
-                          : calibrated
-                            ? "rgba(46, 95, 92, 0.18)"
-                            : "rgba(156, 144, 130, 0.14)"
-                  }
-                  stroke={
-                    isSelected
-                      ? "#B5471F"
-                      : isHovered
-                        ? "#2E5F5C"
-                        : "rgba(28, 26, 21, 0.12)"
-                  }
-                  strokeWidth={isSelected ? 2.2 : isHovered ? 1.6 : 0.8}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth={strokeWidth}
                   onMouseEnter={() => setHoveredId(county.id)}
                   onMouseLeave={() => setHoveredId(null)}
                   onFocus={() => setHoveredId(county.id)}
                   onBlur={() => setHoveredId(null)}
                   onClick={() => handleCountySelect(county.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleCountySelect(county.id);
+                    }
+                  }}
                   onTouchEnd={(e) => {
                     e.preventDefault();
                     handleCountySelect(county.id);
                   }}
                   tabIndex={0}
+                  role="button"
+                  aria-pressed={isSelected}
                   aria-label={county.name}
+                  aria-disabled={!calibrated}
                 />
               );
             })}
@@ -148,32 +203,39 @@ export default function KenyaCountyMap({ compact = false }: Props) {
               />
             )}
           </svg>
+        </div>
 
-          {(activeId || countyId) && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 sm:left-2 sm:bottom-2 sm:right-2">
-              <div className="rounded-t-lg sm:rounded-md border border-border bg-card/98 backdrop-blur px-3 py-2.5 shadow-sm sm:max-w-[200px] safe-bottom">
-                <span className="font-display text-sm sm:text-xs text-ink block">
-                  {hoveredName ?? selected?.name ?? "Kenya"}
-                </span>
-                <span className="text-[11px] sm:text-[10px] text-ink-muted leading-tight block mt-0.5">
-                  {activeId && !isCountySelectable(activeId)
-                    ? t("start.comingSoon", {
-                        when: hovered?.available ?? t("start.comingSoonShort", { when: "soon" }),
-                      })
-                    : selected?.population
-                      ? t("start.countyPop", {
-                          pop: (selected.population / 1_000_000).toFixed(2),
-                        })
-                      : t("start.calibrated")}
-                </span>
+        <div
+          className={`shrink-0 rounded-lg border border-border-soft bg-paper-deep/50 ${
+            useFillLayout ? "px-3 py-2" : "rounded-xl px-4 py-3.5"
+          }`}
+        >
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[9px] uppercase tracking-wider text-ink-muted">
+                {t("start.selectCounty")}
+              </div>
+              <div className={`font-display text-ink truncate ${useFillLayout ? "text-sm" : "text-base"}`}>
+                {hoveredName ?? selected?.name ?? "Kenya"}
               </div>
             </div>
+            <p className="text-[11px] text-ink-muted leading-snug text-right shrink-0 max-w-[45%]">
+              {countyDetail}
+            </p>
+          </div>
+          {isCountySelectable(countyId) && (
+            <Link
+              href={designHref(countyId)}
+              className="mt-2.5 inline-flex w-full sm:w-auto items-center justify-center min-h-[40px] px-4 py-2 rounded-lg bg-ink text-paper text-sm font-medium hover:opacity-90 transition"
+            >
+              {t("start.mapContinue", { county: selected?.name ?? countyId })}
+            </Link>
           )}
         </div>
 
         {comingSoonCountyId && (
-          <div className="mt-2 shrink-0 flex items-start justify-between gap-2 rounded-lg border border-warning/30 bg-warning/10 px-2 py-2 text-[10px] text-ink-soft min-h-[44px]">
-            <span>
+          <div className="shrink-0 flex items-start justify-between gap-2 rounded-lg border border-warning/30 bg-warning/10 px-2.5 py-2 text-[10px] text-ink-soft">
+            <span className="leading-snug">
               {(() => {
                 const meta = getCountyById(comingSoonCountyId);
                 const name = getCountyLabel(comingSoonCountyId);
@@ -185,7 +247,7 @@ export default function KenyaCountyMap({ compact = false }: Props) {
             <button
               type="button"
               onClick={clearComingSoon}
-              className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center text-ink-muted hover:text-ink -mr-2"
+              className="shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center text-ink-muted hover:text-ink -mr-1"
               aria-label={t("nav.close")}
             >
               ×

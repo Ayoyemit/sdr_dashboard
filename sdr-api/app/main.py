@@ -13,6 +13,7 @@ if str(SIM_PATH) not in sys.path:
 from app.routes.health import router as health_router
 from app.routes.meta import router as meta_router
 from app.routes.scenarios import router as scenarios_router
+from app.services.prewarm import schedule_prewarm
 
 app = FastAPI(
     title="SDR Decision Tool API",
@@ -36,3 +37,8 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(meta_router)
 app.include_router(scenarios_router)
+
+
+@app.on_event("startup")
+def _startup_prewarm() -> None:
+    schedule_prewarm()

@@ -18,10 +18,15 @@ from app.schemas.results import (
     DeliveryLocationSeries,
     DeliveryLocationTimeseries,
     FacilityCapacitySeries,
+    FacilityLevelEndOfRun,
+    FacilityLevelRateBundle,
+    FacilityLevelSeries,
+    FacilityLevelSnapshot,
     IndicatorAvailable,
     IndicatorTimeseriesBundle,
     MaternalMortalitySeries,
     MetaResult,
+    MortalityByFacilityLevelTimeseries,
     NarrativeResult,
     ResourceAdequacy,
     ScenarioResult,
@@ -150,6 +155,76 @@ def _build_indicator_series(
         ),
         surgical_staff_ratio=_pair_series(
             b_df, i_df, "Surgical_ratio", lbs_b, lbs_i, n_months, as_rate_per_lb=False
+        ),
+    )
+
+
+_FACILITY_LEVEL_KEYS = ("home", "l23", "l4", "l5")
+
+
+def _level_value(val, level_idx: int) -> float:
+    if val is None:
+        return 0.0
+    arr = np.asarray(val, dtype=float)
+    if arr.size <= level_idx:
+        return 0.0
+    return float(arr[level_idx])
+
+
+def _cumulative_mmr_by_level(df: pd.DataFrame, n_months: int) -> FacilityLevelSeries:
+    cum_deaths = {k: 0.0 for k in _FACILITY_LEVEL_KEYS}
+    cum_lbs = {k: 0.0 for k in _FACILITY_LEVEL_KEYS}
+    series = {k: [] for k in _FACILITY_LEVEL_KEYS}
+    for i in range(n_months):
+        deaths = df.loc[i, "Deaths"]
+        lbs = df.loc[i, "Live Births Final"]
+        for idx, key in enumerate(_FACILITY_LEVEL_KEYS):
+            cum_deaths[key] += _level_value(deaths, idx)
+            cum_lbs[key] += _level_value(lbs, idx)
+            mmr = cum_deaths[key] / cum_lbs[key] * 100_000 if cum_lbs[key] > 0 else 0.0
+            series[key].append(round(mmr, 4))
+    return FacilityLevelSeries(**series)
+
+
+def _cumulative_rate_snapshot(
+    df: pd.DataFrame, num_col: str, den_col: str, n_months: int, multiplier: float = 100.0
+) -> FacilityLevelSnapshot:
+    totals_num = {k: 0.0 for k in _FACILITY_LEVEL_KEYS}
+    totals_den = {k: 0.0 for k in _FACILITY_LEVEL_KEYS}
+    for i in range(n_months):
+        if num_col not in df.columns or den_col not in df.columns:
+            continue
+        num = df.loc[i, num_col]
+        den = df.loc[i, den_col]
+        for idx, key in enumerate(_FACILITY_LEVEL_KEYS):
+            totals_num[key] += _level_value(num, idx)
+            totals_den[key] += _level_value(den, idx)
+    rates = {}
+    for key in _FACILITY_LEVEL_KEYS:
+        rate = totals_num[key] / totals_den[key] * multiplier if totals_den[key] > 0 else 0.0
+        rates[key] = round(rate, 1)
+    return FacilityLevelSnapshot(**rates)
+
+
+def _build_facility_level_end_of_run(
+    b_df: pd.DataFrame, i_df: pd.DataFrame, n_months: int
+) -> FacilityLevelEndOfRun:
+    return FacilityLevelEndOfRun(
+        anc_rate=FacilityLevelRateBundle(
+            baseline=_cumulative_rate_snapshot(b_df, "ANC", "Live Births Final", n_months),
+            intervention=_cumulative_rate_snapshot(i_df, "ANC", "Live Births Final", n_months),
+        ),
+        cs_rate=FacilityLevelRateBundle(
+            baseline=_cumulative_rate_snapshot(b_df, "CS", "Live Births Final", n_months),
+            intervention=_cumulative_rate_snapshot(i_df, "CS", "Live Births Final", n_months),
+        ),
+        normal_referral=FacilityLevelRateBundle(
+            baseline=_cumulative_rate_snapshot(
+                b_df, "Normal_referrals", "Live Births Final", n_months
+            ),
+            intervention=_cumulative_rate_snapshot(
+                i_df, "Normal_referrals", "Live Births Final", n_months
+            ),
         ),
     )
 
@@ -359,17 +434,11 @@ def sim_outputs_to_response(
     narrative_text = (
         f"Over {scenario.run.implementation_years + scenario.run.maintenance_years} years, "
         f"this scenario is projected to avert approximately {deaths_averted:,.0f} maternal deaths "
-        f"and {dalys_averted:,.0f} disability-adjusted life years (DALYs). "
+        f"and {severe_averted:,.0f} severe maternal outcomes. "
     )
-    if cost_per_daly > 0 and cost_per_daly < WHO_KENYA_THRESHOLD_USD:
+    if total_cost > 0:
         narrative_text += (
-            f"At roughly ${cost_per_daly:,.0f} per DALY averted, the intervention appears "
-            f"cost-effective against the WHO Kenya threshold of ${WHO_KENYA_THRESHOLD_USD:,.0f}."
-        )
-    elif cost_per_daly > 0:
-        narrative_text += (
-            f"The estimated cost of ${cost_per_daly:,.0f} per DALY averted exceeds the "
-            f"WHO Kenya threshold — further refinement may improve value for money."
+            f"Total intervention cost is estimated at roughly ${total_cost:,.0f} over the horizon."
         )
 
     indicators = [
@@ -451,15 +520,8 @@ def sim_outputs_to_response(
             is_active=True,
         ),
         IndicatorAvailable(
-            id="cost_effectiveness",
-            name="Cost-effectiveness",
-            domain="outcomes",
-            pillar_source="cross-cutting",
-            is_active=True,
-        ),
-        IndicatorAvailable(
-            id="dalys_averted",
-            name="DALYs averted",
+            id="intervention_cost",
+            name="Intervention cost",
             domain="outcomes",
             pillar_source="cross-cutting",
             is_active=True,
@@ -494,8 +556,8 @@ def sim_outputs_to_response(
             in_plain_english=narrative_text,
             key_numbers={
                 "deaths_averted": f"{deaths_averted:,.0f}",
-                "dalys_averted": f"{dalys_averted:,.0f}",
-                "cost_per_daly": f"${cost_per_daly:,.0f}",
+                "severe_outcomes_averted": f"{severe_averted:,.0f}",
+                "total_cost_usd": f"${total_cost:,.0f}",
             },
         ),
         timeseries=TimeseriesResult(
@@ -520,6 +582,11 @@ def sim_outputs_to_response(
                 threshold_usd=WHO_KENYA_THRESHOLD_USD,
             ),
             indicator_series=_build_indicator_series(b_df, i_df, lbs_b, lbs_i, n_months),
+            mortality_by_facility_level=MortalityByFacilityLevelTimeseries(
+                baseline=_cumulative_mmr_by_level(b_df, n_months),
+                intervention=_cumulative_mmr_by_level(i_df, n_months),
+            ),
+            facility_level_end_of_run=_build_facility_level_end_of_run(b_df, i_df, n_months),
         ),
         indicators_available=indicators,
         resource_adequacy_end_of_run=resource,

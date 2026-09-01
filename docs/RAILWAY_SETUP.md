@@ -72,9 +72,7 @@ RUN_CACHE_TTL_SECONDS=900
 | **`web`** | **Dockerfile** | Must copy `sim/` + `sdr-api/` from monorepo root |
 | **`sdr_dashboard`** | **Nixpacks** | Standard Next.js in `sdr-web/` |
 
-Do **not** remove root `railway.toml` — without it, the **`web`** service may fall back to **Railpack** (no `package.json` at repo root → deploy fails). The file only applies to the API service (repo root); the frontend uses Nixpacks from `sdr-web/`.
-
-If API deploys fail with no Docker build, check in Railway → **`web`** → Settings that **Dockerfile path** is `sdr-api/Dockerfile` and **config file** is `railway.toml`.
+Do **not** put `railway.toml` at the **repo root** — Railway applies it to every service. Use `sdr-api/railway.toml` for **`web`** and `sdr-web/railway.toml` for **`sdr_dashboard`**.
 
 `sdr-web/Dockerfile` is for **local** `docker compose` only.
 
@@ -85,7 +83,7 @@ If API deploys fail with no Docker build, check in Railway → **`web`** → Set
 | Setting | Value |
 |---------|--------|
 | **Root Directory** | `sdr-web` ← **critical** |
-| **Builder** | Nixpacks (auto-detects Next.js) |
+| **Config file** | `sdr-web/railway.toml` (via Root Directory `sdr-web`) |
 
 > If Root Directory is empty, you may see: `The working directory "/app" does not exist`.
 

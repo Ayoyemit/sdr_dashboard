@@ -1,4 +1,4 @@
-# API service (Railway name: "web") — Root Directory must be repo root.
+# API service only (Railway service name: "web"). Root Directory = repo root.
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "sdr-api/Dockerfile"
